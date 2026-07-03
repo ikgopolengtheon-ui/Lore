@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+/*
+  Lore brand system — locked visual identity (PRD §8).
+  Void/Amber dark palette. Fraunces wordmark, Switzer UI body,
+  Shantell Sans + Permanent Marker for the whiteboard.
+*/
+
+:root {
+  --void: #0c0b09;   /* primary background */
+  --carbon: #1c1916; /* surface / card */
+  --depth: #151310;  /* deeper surface (navbars, panels) */
+  --amber: #d4933c;  /* primary accent */
+  --amber-lt: #e8b86d;
+  --amber-dk: #a06b22;
+  --cream: #f4eee2;  /* primary text on dark */
+  --dusk: #8c7d68;   /* secondary text, metadata */
+  --faint: #4a4236;  /* faint dividers, disabled */
+  --border: rgba(212, 147, 60, 0.12);
+  --border-m: rgba(212, 147, 60, 0.24);
+  --green: #6db87a;
+  --red: #c46060;
+  --blue: #6d9bd4;   /* student annotation colour on whiteboard */
+}
+
+@theme inline {
+  --color-void: var(--void);
+  --color-carbon: var(--carbon);
+  --color-depth: var(--depth);
+  --color-amber: var(--amber);
+  --color-amber-lt: var(--amber-lt);
+  --color-amber-dk: var(--amber-dk);
+  --color-cream: var(--cream);
+  --color-dusk: var(--dusk);
+  --color-faint: var(--faint);
+  --color-line: var(--border);
+  --color-line-m: var(--border-m);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --color-blue: var(--blue);
+
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-switzer), system-ui, sans-serif;
+  --font-hand: var(--font-shantell), "Comic Sans MS", cursive;
+  --font-marker: var(--font-marker), "Permanent Marker", cursive;
+}
+
+/* Switzer — distributed via Fontshare, not Google Fonts (PRD §14). */
+@font-face {
+  font-family: "Switzer";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 500;
+  src: url("https://api.fontshare.com/v2/fonts/switzer/fonts/switzer-variable_wght.woff2")
+    format("woff2");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--void);
+  color: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--void);
+  color: var(--cream);
+  font-family: var(--font-sans), "Switzer", system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--void);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--faint);
+  border-radius: 3px;
+}
+
+/* Respect reduced-motion (PRD §12.4) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus ring — amber, min 3px (PRD §12.1 / WCAG 2.4.11) */
+:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@keyframes lore-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes lore-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes lore-wave {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes lore-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes lore-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lore-write-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) rotate(-0.4deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-0.4deg);
+  }
+}
+
+.animate-fade-up {
+  animation: lore-fade-up 0.5s ease-out both;
+}
