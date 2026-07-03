@@ -22,7 +22,9 @@ interface Props {
 export function Processing({ isImage, onDone }: Props) {
   const [step, setStep] = useState(0);
   const doneRef = useRef(onDone);
-  doneRef.current = onDone;
+  useEffect(() => {
+    doneRef.current = onDone;
+  });
 
   useEffect(() => {
     const perStep = 900;

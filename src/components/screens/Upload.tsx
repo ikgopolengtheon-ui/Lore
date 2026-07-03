@@ -34,7 +34,7 @@ export function Upload({ onStart }: Props) {
       setError(null);
       const list = Array.from(incoming);
       setFiles((prev) => {
-        let next = [...prev];
+        const next = [...prev];
         for (const f of list) {
           const v = validateFile(f.name, f.size);
           if (v) {

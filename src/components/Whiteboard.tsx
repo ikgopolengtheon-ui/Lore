@@ -5,7 +5,7 @@
 // blue on the same canvas. Canvas exports to PNG (v1). State is lifted so it
 // persists with the session.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { WhiteboardStep } from "@/lib/types";
 import { Icon } from "./Icon";
 
@@ -29,26 +29,7 @@ export function Whiteboard({ steps, revealed, onClose }: Props) {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const drawing = useRef(false);
 
-  // size the drawing canvas to its container
-  useEffect(() => {
-    const resize = () => {
-      const c = canvasRef.current;
-      const wrap = wrapRef.current;
-      if (!c || !wrap) return;
-      const r = wrap.getBoundingClientRect();
-      c.width = r.width;
-      c.height = r.height;
-      redraw();
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(redraw, [strokes]);
-
-  function redraw() {
+  const redraw = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
     const ctx = c.getContext("2d");
@@ -65,7 +46,34 @@ export function Whiteboard({ steps, revealed, onClose }: Props) {
       );
       ctx.stroke();
     }
-  }
+  }, [strokes]);
+
+  // keep a live handle to the latest redraw for the mount-only resize handler
+  const redrawRef = useRef(redraw);
+  useEffect(() => {
+    redrawRef.current = redraw;
+  }, [redraw]);
+
+  // size the drawing canvas to its container (mount + window resize)
+  useEffect(() => {
+    const resize = () => {
+      const c = canvasRef.current;
+      const wrap = wrapRef.current;
+      if (!c || !wrap) return;
+      const r = wrap.getBoundingClientRect();
+      c.width = r.width;
+      c.height = r.height;
+      redrawRef.current();
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  // redraw whenever strokes change
+  useEffect(() => {
+    redraw();
+  }, [redraw]);
 
   function pos(e: React.PointerEvent) {
     const r = canvasRef.current!.getBoundingClientRect();

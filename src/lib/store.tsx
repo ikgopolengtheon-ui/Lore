@@ -36,15 +36,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // hydrate once on mount
+  // Hydrate once on mount. We intentionally render empty first and populate
+  // from localStorage after mount — reading storage during render would cause
+  // an SSR/client hydration mismatch. This is external-store synchronisation,
+  // which the set-state-in-effect heuristic can't distinguish, so scope-disable.
   useEffect(() => {
+    let restored: Session[] = [];
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setSessions(JSON.parse(raw) as Session[]);
+      if (raw) restored = JSON.parse(raw) as Session[];
     } catch {
       /* corrupt store — start clean (surfaces as Screen 8.9 on restore) */
     }
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSessions(restored);
     setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   // debounced persistence

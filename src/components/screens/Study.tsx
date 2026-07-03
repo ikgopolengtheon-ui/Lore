@@ -55,9 +55,13 @@ export function Study({
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speedRef = useRef(speed);
-  speedRef.current = speed;
   const pausedRef = useRef(paused);
-  pausedRef.current = paused;
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   // keep transcript pinned to the newest content
   useEffect(() => {
@@ -234,7 +238,7 @@ export function Study({
                     text: live.text || "…",
                     steps: live.steps.slice(0, live.revealed),
                     grounded: live.grounded,
-                    createdAt: Date.now(),
+                    createdAt: 0, // display-only placeholder; not persisted
                   }}
                   streaming
                 />
