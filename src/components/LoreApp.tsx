@@ -93,12 +93,22 @@ export function LoreApp() {
         first.kind === "image"
           ? `Photo notes (${files.length})`
           : first.name.replace(/\.[^.]+$/, "");
-      // mock indexed word count — enough to allow quizzing
-      const wordCount = 250 + Math.floor(Math.random() * 900);
+      // Combine extracted text in upload order — multi-image sessions and any
+      // future multi-doc combine here into one grounding corpus (PRD §4.5).
+      const documentText = files
+        .map((f) => f.extractedText ?? "")
+        .filter(Boolean)
+        .join("\n\n");
+      // Word count from real text when available; otherwise a mock stand-in so
+      // the quiz gate still behaves until PDF/OCR extraction lands.
+      const wordCount = documentText
+        ? documentText.split(/\s+/).filter(Boolean).length
+        : 250 + Math.floor(Math.random() * 900);
       store.updateSession(activeId, {
         title,
         files,
         wordCount,
+        documentText,
         subject: guessSubject(first.name),
       });
       setStage("processing");

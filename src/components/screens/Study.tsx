@@ -8,10 +8,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session, Turn, WhiteboardStep } from "@/lib/types";
 import {
   classifyStem,
-  mockAnswer,
+  extractWhiteboardSteps,
   mockTranscribe,
   uid,
 } from "@/lib/mockAI";
+import { askLore } from "@/lib/chatClient";
+import { GROUNDING_MISS } from "@/lib/grounding";
 import { useStore } from "@/lib/store";
 import { MicButton } from "../MicButton";
 import { Whiteboard } from "../Whiteboard";
@@ -54,6 +56,8 @@ export function Study({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const runResponseRef = useRef<((q: string) => void) | null>(null);
   const speedRef = useRef(speed);
   const pausedRef = useRef(paused);
   useEffect(() => {
@@ -75,36 +79,81 @@ export function Study({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
   };
-  useEffect(() => clearTimers, []);
+  useEffect(() => {
+    return () => {
+      clearTimers();
+      abortRef.current?.abort();
+    };
+  }, []);
 
+  // Ask Claude and reveal the streamed answer. The network fills a buffer while
+  // a separate reveal timer walks through it honouring pause + speed, so the
+  // TTS-style playback controls keep working over a real stream. STEM steps are
+  // extracted from the model's own equation lines for Whiteboard Mode (§6.2).
   const runResponse = useCallback(
     (question: string) => {
-      const answer = mockAnswer(question);
-      const steps = answer.steps ?? [];
-      const stem =
-        answer.grounded && steps.length > 0 && classifyStem(answer.text);
+      clearTimers();
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-      if (stem) setWbOpen(true);
+      let buffer = "";
+      let receiving = true;
+      let failed = false;
+      let shown = 0;
+      let wbTriggered = false;
 
       setStudyState("responding");
-      setLive({ text: "", steps, revealed: 0, grounded: answer.grounded });
+      setPaused(false);
+      setLive({ text: "", steps: [], revealed: 0, grounded: true });
 
-      // stream the answer word-by-word to mimic LLM + TTS streaming (PRD §4.4).
-      // A self-rescheduling timeout naturally honours live speed + pause
-      // changes via refs, with a single timer to tear down.
-      const words = answer.text.split(" ");
-      let i = 0;
-      const stepInterval = steps.length
-        ? Math.max(1, Math.floor(words.length / steps.length))
-        : 0;
+      // Prior turns only — the route appends `question` as the final user
+      // message, so drop a trailing student turn equal to it to avoid a dupe.
+      const turns = session.turns;
+      const last = turns[turns.length - 1];
+      const prior =
+        last && last.role === "student" && last.text === question
+          ? turns.slice(0, -1)
+          : turns;
+      const history = prior.map((t) => ({ role: t.role, text: t.text }));
+
+      askLore(
+        {
+          question,
+          documentText: session.documentText,
+          history,
+          signal: controller.signal,
+        },
+        {
+          onChunk: (full) => {
+            buffer = full;
+          },
+          onDone: (full) => {
+            buffer = full;
+            receiving = false;
+          },
+          onError: () => {
+            failed = true;
+            receiving = false;
+          },
+        },
+      );
+
+      const isMiss = (t: string) =>
+        t.trim().startsWith(GROUNDING_MISS.slice(0, 32));
 
       const commit = () => {
+        const text = buffer.trim();
+        const steps =
+          !isMiss(text) && classifyStem(text)
+            ? extractWhiteboardSteps(text)
+            : [];
         addTurn(session.id, {
           id: uid(),
           role: "lore",
-          text: answer.text,
+          text,
           steps: steps.length ? steps : undefined,
-          grounded: answer.grounded,
+          grounded: !isMiss(text),
           createdAt: Date.now(),
         });
         if (steps.length) setWhiteboard(session.id, steps);
@@ -115,31 +164,54 @@ export function Study({
       };
 
       const tick = () => {
-        if (pausedRef.current) {
-          timerRef.current = setTimeout(tick, 90); // idle-poll while paused
+        // LLM failure → Screen 8.7 with a retry that re-runs this question.
+        if (failed && shown === 0) {
+          clearTimers();
+          setLive(null);
+          setStudyState("idle");
+          onLlmError(() => runResponseRef.current?.(question));
           return;
         }
-        i += 2;
-        const revealed = stepInterval
-          ? Math.min(steps.length, Math.floor(i / stepInterval))
-          : 0;
-        setLive({
-          text: words.slice(0, i).join(" "),
-          steps,
-          revealed,
-          grounded: answer.grounded,
-        });
-        if (i >= words.length) {
+        if (pausedRef.current) {
+          timerRef.current = setTimeout(tick, 90);
+          return;
+        }
+        const words = buffer.split(/\s+/).filter(Boolean);
+        if (shown < words.length) {
+          shown += 2;
+        } else if (receiving) {
+          // caught up to the network; wait for more tokens
+          timerRef.current = setTimeout(tick, 60);
+          return;
+        } else {
           commit();
           return;
         }
+        const shownText = words.slice(0, shown).join(" ");
+        let steps: WhiteboardStep[] = [];
+        if (!isMiss(shownText) && classifyStem(shownText)) {
+          steps = extractWhiteboardSteps(shownText);
+          if (steps.length && !wbTriggered) {
+            wbTriggered = true;
+            setWbOpen(true);
+          }
+        }
+        setLive({
+          text: shownText,
+          steps,
+          revealed: steps.length,
+          grounded: !isMiss(shownText),
+        });
         timerRef.current = setTimeout(tick, BASE_TICK / speedRef.current);
       };
 
       timerRef.current = setTimeout(tick, BASE_TICK / speedRef.current);
     },
-    [addTurn, setWhiteboard, session.id],
+    [addTurn, setWhiteboard, session.id, session.turns, session.documentText, onLlmError],
   );
+  useEffect(() => {
+    runResponseRef.current = runResponse;
+  }, [runResponse]);
 
   const handleQuestion = useCallback(() => {
     const transcript = mockTranscribe();
@@ -152,16 +224,8 @@ export function Study({
     setStudyState("thinking");
     // response delay — never instant (PRD audio brand: 300–800ms)
     const delay = 300 + Math.random() * 500;
-    setTimeout(() => {
-      // ~8% simulated LLM failure → Screen 8.7 with retry
-      if (Math.random() < 0.08) {
-        setStudyState("idle");
-        onLlmError(() => runResponse(transcript));
-        return;
-      }
-      runResponse(transcript);
-    }, delay);
-  }, [addTurn, session.id, runResponse, onLlmError]);
+    setTimeout(() => runResponse(transcript), delay);
+  }, [addTurn, session.id, runResponse]);
 
   const hasSteps = live?.steps.length || session.whiteboard.length > 0;
 
