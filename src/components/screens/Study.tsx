@@ -35,7 +35,6 @@ interface LiveTurn {
   grounded: boolean;
 }
 
-const BASE_TICK = 55; // ms per streaming tick at 1× speed
 
 export function Study({
   session,
@@ -47,7 +46,7 @@ export function Study({
 }: Props) {
   const { addTurn, setWhiteboard } = useStore();
   const [studyState, setStudyState] = useState<
-    "idle" | "thinking" | "responding"
+    "idle" | "thinking" | "responding" | "speaking"
   >("idle");
   const [live, setLive] = useState<LiveTurn | null>(null);
   const [wbOpen, setWbOpen] = useState(session.whiteboard.length > 0);
@@ -55,17 +54,14 @@ export function Study({
   const [paused, setPaused] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const runResponseRef = useRef<((q: string) => void) | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const speedRef = useRef(speed);
-  const pausedRef = useRef(paused);
   useEffect(() => {
     speedRef.current = speed;
+    if (audioRef.current) audioRef.current.playbackRate = speed;
   }, [speed]);
-  useEffect(() => {
-    pausedRef.current = paused;
-  }, [paused]);
 
   // keep transcript pinned to the newest content
   useEffect(() => {
@@ -73,38 +69,72 @@ export function Study({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [session.turns.length, live?.text, live?.revealed]);
+  }, [session.turns.length, live?.text]);
 
-  const clearTimers = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-  };
-  useEffect(() => {
-    return () => {
-      clearTimers();
-      abortRef.current?.abort();
-    };
+  const stopAudio = useCallback(() => {
+    const a = audioRef.current;
+    if (a) {
+      a.pause();
+      if (a.src) URL.revokeObjectURL(a.src);
+      audioRef.current = null;
+    }
   }, []);
 
-  // Ask Claude and reveal the streamed answer. The network fills a buffer while
-  // a separate reveal timer walks through it honouring pause + speed, so the
-  // TTS-style playback controls keep working over a real stream. STEM steps are
-  // extracted from the model's own equation lines for Whiteboard Mode (§6.2).
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      stopAudio();
+    };
+  }, [stopAudio]);
+
+  const isMiss = (t: string) =>
+    t.trim().startsWith(GROUNDING_MISS.slice(0, 32));
+
+  // Speak the answer via ElevenLabs and drive playback with the pause/speed
+  // controls. TTS failure falls back to text-only (Screen 8.8).
+  const speak = useCallback(
+    async (text: string) => {
+      setStudyState("speaking");
+      setPaused(false);
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) throw new Error("tts");
+        const blob = await res.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.playbackRate = speedRef.current;
+        audioRef.current = audio;
+        audio.onended = () => {
+          stopAudio();
+          setStudyState("idle");
+        };
+        audio.onerror = () => {
+          stopAudio();
+          setStudyState("idle");
+          pushToast("Audio playback failed. Your answer is shown above.");
+        };
+        await audio.play();
+      } catch {
+        setStudyState("idle");
+        pushToast("Audio playback failed. Your answer is shown above.");
+      }
+    },
+    [pushToast, stopAudio],
+  );
+
+  // Ask Claude, stream the answer text into the transcript live, then speak it.
+  // STEM steps are pulled from the model's equation lines for Whiteboard (§6.2).
   const runResponse = useCallback(
     (question: string) => {
-      clearTimers();
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
-
-      let buffer = "";
-      let receiving = true;
-      let failed = false;
-      let shown = 0;
       let wbTriggered = false;
 
       setStudyState("responding");
-      setPaused(false);
       setLive({ text: "", steps: [], revealed: 0, grounded: true });
 
       // Prior turns only — the route appends `question` as the final user
@@ -117,6 +147,23 @@ export function Study({
           : turns;
       const history = prior.map((t) => ({ role: t.role, text: t.text }));
 
+      const render = (full: string) => {
+        let steps: WhiteboardStep[] = [];
+        if (!isMiss(full) && classifyStem(full)) {
+          steps = extractWhiteboardSteps(full);
+          if (steps.length && !wbTriggered) {
+            wbTriggered = true;
+            setWbOpen(true);
+          }
+        }
+        setLive({
+          text: full,
+          steps,
+          revealed: steps.length,
+          grounded: !isMiss(full),
+        });
+      };
+
       askLore(
         {
           question,
@@ -125,107 +172,102 @@ export function Study({
           signal: controller.signal,
         },
         {
-          onChunk: (full) => {
-            buffer = full;
-          },
+          onChunk: render,
           onDone: (full) => {
-            buffer = full;
-            receiving = false;
+            const text = full.trim();
+            const steps =
+              !isMiss(text) && classifyStem(text)
+                ? extractWhiteboardSteps(text)
+                : [];
+            addTurn(session.id, {
+              id: uid(),
+              role: "lore",
+              text,
+              steps: steps.length ? steps : undefined,
+              grounded: !isMiss(text),
+              createdAt: Date.now(),
+            });
+            if (steps.length) setWhiteboard(session.id, steps);
+            setLive(null);
+            if (text) speak(text);
+            else setStudyState("idle");
           },
           onError: () => {
-            failed = true;
-            receiving = false;
+            setLive(null);
+            setStudyState("idle");
+            onLlmError(() => runResponseRef.current?.(question));
           },
         },
       );
-
-      const isMiss = (t: string) =>
-        t.trim().startsWith(GROUNDING_MISS.slice(0, 32));
-
-      const commit = () => {
-        const text = buffer.trim();
-        const steps =
-          !isMiss(text) && classifyStem(text)
-            ? extractWhiteboardSteps(text)
-            : [];
-        addTurn(session.id, {
-          id: uid(),
-          role: "lore",
-          text,
-          steps: steps.length ? steps : undefined,
-          grounded: !isMiss(text),
-          createdAt: Date.now(),
-        });
-        if (steps.length) setWhiteboard(session.id, steps);
-        setLive(null);
-        setStudyState("idle");
-        setPaused(false);
-        timerRef.current = null;
-      };
-
-      const tick = () => {
-        // LLM failure → Screen 8.7 with a retry that re-runs this question.
-        if (failed && shown === 0) {
-          clearTimers();
-          setLive(null);
-          setStudyState("idle");
-          onLlmError(() => runResponseRef.current?.(question));
-          return;
-        }
-        if (pausedRef.current) {
-          timerRef.current = setTimeout(tick, 90);
-          return;
-        }
-        const words = buffer.split(/\s+/).filter(Boolean);
-        if (shown < words.length) {
-          shown += 2;
-        } else if (receiving) {
-          // caught up to the network; wait for more tokens
-          timerRef.current = setTimeout(tick, 60);
-          return;
-        } else {
-          commit();
-          return;
-        }
-        const shownText = words.slice(0, shown).join(" ");
-        let steps: WhiteboardStep[] = [];
-        if (!isMiss(shownText) && classifyStem(shownText)) {
-          steps = extractWhiteboardSteps(shownText);
-          if (steps.length && !wbTriggered) {
-            wbTriggered = true;
-            setWbOpen(true);
-          }
-        }
-        setLive({
-          text: shownText,
-          steps,
-          revealed: steps.length,
-          grounded: !isMiss(shownText),
-        });
-        timerRef.current = setTimeout(tick, BASE_TICK / speedRef.current);
-      };
-
-      timerRef.current = setTimeout(tick, BASE_TICK / speedRef.current);
     },
-    [addTurn, setWhiteboard, session.id, session.turns, session.documentText, onLlmError],
+    [
+      addTurn,
+      setWhiteboard,
+      session.id,
+      session.turns,
+      session.documentText,
+      onLlmError,
+      speak,
+    ],
   );
   useEffect(() => {
     runResponseRef.current = runResponse;
   }, [runResponse]);
 
-  const handleQuestion = useCallback(() => {
-    const transcript = mockTranscribe();
-    addTurn(session.id, {
-      id: uid(),
-      role: "student",
-      text: transcript,
-      createdAt: Date.now(),
-    });
-    setStudyState("thinking");
-    // response delay — never instant (PRD audio brand: 300–800ms)
-    const delay = 300 + Math.random() * 500;
-    setTimeout(() => runResponse(transcript), delay);
-  }, [addTurn, session.id, runResponse]);
+  // Push-to-talk release: transcribe the clip (Deepgram), then answer.
+  const handleQuestion = useCallback(
+    async (audio: Blob | null) => {
+      stopAudio();
+      setStudyState("thinking");
+
+      let transcript = "";
+      if (audio) {
+        try {
+          const res = await fetch("/api/stt", {
+            method: "POST",
+            headers: { "Content-Type": audio.type || "audio/webm" },
+            body: audio,
+          });
+          const data = await res.json();
+          transcript = (data.transcript || "").trim();
+        } catch {
+          transcript = "";
+        }
+      } else {
+        transcript = mockTranscribe(); // simulated fallback (no real mic)
+      }
+
+      // Screen 8.5 — no transcript: non-blocking toast, return to idle.
+      if (!transcript) {
+        setStudyState("idle");
+        pushToast(
+          "Lore didn't catch that. Try speaking a little louder or moving to a quieter space.",
+        );
+        return;
+      }
+
+      addTurn(session.id, {
+        id: uid(),
+        role: "student",
+        text: transcript,
+        createdAt: Date.now(),
+      });
+      setTimeout(() => runResponse(transcript), 300);
+    },
+    [addTurn, session.id, runResponse, pushToast, stopAudio],
+  );
+
+  const togglePause = useCallback(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) {
+      a.play();
+      setPaused(false);
+    } else {
+      a.pause();
+      setPaused(true);
+    }
+  }, []);
 
   const hasSteps = live?.steps.length || session.whiteboard.length > 0;
 
@@ -332,15 +374,18 @@ export function Study({
       {/* footer: TTS controls + mic (sticky) */}
       <div className="sticky bottom-0 border-t border-line bg-void/90 px-4 py-4 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-4">
-          {studyState === "responding" && (
+          {studyState === "speaking" && (
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setPaused((p) => !p)}
+                onClick={togglePause}
                 aria-label={paused ? "Resume playback" : "Pause playback"}
                 className="grid h-10 w-10 place-items-center rounded-full border border-line-m text-cream hover:border-amber/60"
               >
                 <Icon name={paused ? "play" : "pause"} size={18} />
               </button>
+              <span className="text-xs font-medium text-amber">
+                {paused ? "Paused" : "Speaking"}
+              </span>
               <label className="flex items-center gap-2 text-xs text-dusk">
                 <span>Speed</span>
                 <input
@@ -409,7 +454,7 @@ function TurnBubble({
       >
         {!isStudent && (
           <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-amber">
-            Lore {streaming && <span className="text-dusk">· speaking</span>}
+            Lore {streaming && <span className="text-dusk">· writing</span>}
           </span>
         )}
         <p className={turn.grounded === false ? "italic text-dusk" : ""}>
