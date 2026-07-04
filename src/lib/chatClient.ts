@@ -9,6 +9,7 @@ export interface AskArgs {
   question: string;
   documentText?: string;
   history?: ChatTurn[];
+  sessionId?: string;
   signal?: AbortSignal;
 }
 
@@ -20,7 +21,7 @@ export interface AskHandlers {
 }
 
 export async function askLore(
-  { question, documentText, history, signal }: AskArgs,
+  { question, documentText, history, sessionId, signal }: AskArgs,
   { onChunk, onDone, onError }: AskHandlers,
 ): Promise<void> {
   let res: Response;
@@ -28,7 +29,7 @@ export async function askLore(
     res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, documentText, history }),
+      body: JSON.stringify({ question, documentText, history, sessionId }),
       signal,
     });
   } catch (e) {

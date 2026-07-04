@@ -161,6 +161,16 @@ export function LoreApp() {
         documentText,
         wordCount: documentText.split(/\s+/).filter(Boolean).length,
       });
+
+      // Index into the vector store for RAG (fire-and-forget). Until embedding
+      // finishes, chat falls back to full-document context, so study isn't
+      // blocked on it.
+      fetch("/api/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: id, text: documentText }),
+      }).catch(() => {});
+
       setStage("study");
     },
     [activeId, store, pushToast],
@@ -201,6 +211,19 @@ export function LoreApp() {
     }
   }, [errorKey]);
 
+  // Delete a chat: drop its vectors too (PRD §11.3), then remove it locally.
+  const handleDelete = useCallback(
+    (sid: string) => {
+      fetch("/api/rag-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(() => {});
+      store.deleteSession(sid);
+    },
+    [store],
+  );
+
   // ─── render ────────────────────────────────────────────────────
   const headerRight =
     view === "session" && active ? (
@@ -235,7 +258,7 @@ export function LoreApp() {
           sessions={store.sessions}
           onNewChat={newChat}
           onOpen={openSession}
-          onDelete={store.deleteSession}
+          onDelete={handleDelete}
         />
       ) : !active ? (
         <div className="flex flex-1 items-center justify-center text-dusk">

@@ -7,6 +7,7 @@ import {
   GROUNDING_SYSTEM,
   documentBlock,
 } from "@/lib/grounding";
+import { retrieve } from "@/lib/pinecone";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,7 @@ interface ChatRequest {
   question: string;
   documentText?: string;
   history?: ChatTurn[];
+  sessionId?: string;
 }
 
 export async function POST(req: Request) {
@@ -50,7 +52,21 @@ export async function POST(req: Request) {
     return Response.json({ error: "No question provided." }, { status: 400 });
   }
 
-  const docText = (body.documentText ?? "").slice(0, MAX_DOC_CHARS);
+  // RAG retrieval: pull the most relevant chunks for this question from the
+  // session's Pinecone namespace. Fall back to the full document text the
+  // client sends when RAG is unavailable/empty (small docs, no key, error).
+  let context = "";
+  if (process.env.PINECONE_API_KEY && body.sessionId) {
+    try {
+      const chunks = await retrieve(body.sessionId, question);
+      if (chunks.length) context = chunks.join("\n\n---\n\n");
+    } catch {
+      /* fall through to full-document context */
+    }
+  }
+  if (!context) context = (body.documentText ?? "").slice(0, MAX_DOC_CHARS);
+
+  const docText = context.slice(0, MAX_DOC_CHARS);
   const history = (body.history ?? []).slice(-12); // recent turns only
 
   const client = new Anthropic({ apiKey });

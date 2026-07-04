@@ -169,6 +169,7 @@ export function Study({
           question,
           documentText: session.documentText,
           history,
+          sessionId: session.id,
           signal: controller.signal,
         },
         {
