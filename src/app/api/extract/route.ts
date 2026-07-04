@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     if (ext === "txt") {
-      const text = buf.toString("utf-8");
+      const text = buf.toString("utf-8").replace(/^﻿/, ""); // strip BOM
       return Response.json({
         ok: true,
         kind: "document",

@@ -105,14 +105,15 @@ export function Upload({ onStart }: Props) {
             };
             reader.readAsDataURL(f);
           } else if (ext === "txt") {
-            // Real text extraction for plain-text documents. PDF/DOCX/PPTX
-            // extraction and image OCR are the next slice; until then those
-            // upload fine but ground on empty text.
+            // Plain-text extraction client-side (PDF/DOCX/PPTX/images go
+            // through /api/extract during processing). Strip a leading BOM.
             f.text()
               .then((text) =>
                 setFiles((cur) =>
                   cur.map((x) =>
-                    x.id === uf.id ? { ...x, extractedText: text } : x,
+                    x.id === uf.id
+                      ? { ...x, extractedText: text.replace(/^﻿/, "") }
+                      : x,
                   ),
                 ),
               )
