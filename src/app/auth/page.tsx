@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { StoreProvider } from "@/lib/store";
 import { AuthScreen } from "@/components/AuthScreen";
@@ -15,7 +16,11 @@ export default function AuthPage() {
   );
   return (
     <StoreProvider>
-      <AuthScreen photo={hasPhoto ? "/auth-lamp.jpg" : null} />
+      {/* Suspense: AuthScreen reads ?mode= via useSearchParams, which needs
+          a boundary to keep this page statically prerenderable. */}
+      <Suspense>
+        <AuthScreen photo={hasPhoto ? "/auth-lamp.jpg" : null} />
+      </Suspense>
     </StoreProvider>
   );
 }

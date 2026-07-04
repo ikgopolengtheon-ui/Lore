@@ -8,7 +8,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Logo } from "./Logo";
 import { Icon } from "./Icon";
@@ -84,7 +84,10 @@ export function AuthScreen({ photo }: { photo: string | null }) {
 function AuthCard() {
   const { signUp, signIn } = useStore();
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const params = useSearchParams();
+  const [mode, setMode] = useState<"signin" | "signup">(
+    params.get("mode") === "signin" ? "signin" : "signup",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -164,7 +167,7 @@ function AuthCard() {
               ? "Working…"
               : mode === "signup"
                 ? "Create account"
-                : "Sign in"}
+                : "Log in"}
           </Button>
         </form>
         <button
@@ -176,7 +179,7 @@ function AuthCard() {
           className="mt-4 w-full text-center text-xs text-dusk transition-colors hover:text-cream"
         >
           {mode === "signup"
-            ? "Already have an account? Sign in"
+            ? "Already have an account? Log in"
             : "New to Lore? Create an account"}
         </button>
       </div>
