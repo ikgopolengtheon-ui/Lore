@@ -292,7 +292,9 @@ export function LoreApp() {
       )}
 
       <Toaster toasts={toasts} onDismiss={dismissToast} />
-      <StatePreview onError={triggerError} />
+      {process.env.NODE_ENV === "development" && (
+        <StatePreview onError={triggerError} />
+      )}
     </div>
   );
 }

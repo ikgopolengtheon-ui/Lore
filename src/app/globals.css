@@ -64,6 +64,7 @@ html {
   color: var(--cream);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  scrollbar-color: var(--faint) var(--void); /* Firefox */
 }
 
 body {
@@ -101,7 +102,22 @@ body {
 :focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: 2px;
-  border-radius: 4px;
+}
+
+::selection {
+  background: var(--amber);
+  color: var(--void);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* Waveform bars offscreen (toggled by LandingMotion) — stop burning frames */
+.wave-paused span {
+  animation-play-state: paused !important;
 }
 
 @keyframes lore-pulse {
