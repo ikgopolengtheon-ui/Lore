@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
 import mammoth from "mammoth";
 import { extractText as extractPdfText } from "unpdf";
+import { unzipSync, strFromU8 } from "fflate";
 import { fileExt, kindForExt } from "@/lib/constants";
 import type { ExtractResult } from "@/lib/types";
 
@@ -84,7 +85,17 @@ export async function POST(req: Request) {
       } satisfies ExtractResult);
     }
 
-    // pptx and anything else: not parsed yet — index nothing, warn the student.
+    if (ext === "pptx") {
+      const text = extractPptx(buf).trim();
+      return Response.json({
+        ok: true,
+        kind: "document",
+        text,
+        scanned: text.length < 20, // no readable text on any slide → 8.4
+      } satisfies ExtractResult);
+    }
+
+    // any other type: not parsed — index nothing, warn the student.
     return Response.json({
       ok: true,
       kind: "document",
@@ -165,4 +176,59 @@ async function extractImage(buf: Buffer, ext: string): Promise<ExtractResult> {
     text,
     imageEmpty: text.length === 0, // → Screen 8.11
   };
+}
+
+// ─── PPTX ─────────────────────────────────────────────────────────
+// A .pptx is a ZIP of OOXML. Slide text lives in <a:t> runs inside
+// ppt/slides/slideN.xml; speaker notes in ppt/notesSlides/notesSlideN.xml.
+// Rasterised equation images can't be extracted, but that's fine — we index
+// whatever text is present and don't crash (PRD §4.6).
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&amp;/g, "&"); // ampersand last
+}
+
+function slideNumber(name: string): number {
+  const m = name.match(/(\d+)\.xml$/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+function textFromSlideXml(xml: string): string {
+  const runs = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)].map((m) =>
+    decodeXmlEntities(m[1]),
+  );
+  return runs.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function extractPptx(buf: Buffer): string {
+  const files = unzipSync(new Uint8Array(buf));
+  const names = Object.keys(files);
+  const byNum = (a: string, b: string) => slideNumber(a) - slideNumber(b);
+
+  const slides = names
+    .filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort(byNum);
+  const notes = names
+    .filter((n) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(n))
+    .sort(byNum);
+
+  const parts: string[] = [];
+  slides.forEach((n, i) => {
+    const t = textFromSlideXml(strFromU8(files[n]));
+    if (t) parts.push(`Slide ${i + 1}: ${t}`);
+  });
+
+  const noteTexts = notes
+    .map((n) => textFromSlideXml(strFromU8(files[n])))
+    .filter(Boolean);
+  if (noteTexts.length) parts.push(`Speaker notes:\n${noteTexts.join("\n")}`);
+
+  return parts.join("\n\n");
 }
