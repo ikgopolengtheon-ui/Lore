@@ -1,9 +1,10 @@
 "use client";
 
-// Per-chat persistence (PRD §11.1). Backed by Supabase when configured and
-// reachable (anonymous auth + a `chats` table with RLS), otherwise localStorage
-// so the app works before Supabase is set up. The context API stays synchronous
-// — persistence is a write-through side effect — so no consumer changes.
+// Per-chat persistence + auth (PRD §11.1 / §14). Backed by Supabase when
+// configured and reachable (anonymous-first auth + a `chats` table with RLS),
+// otherwise localStorage so the app works before Supabase is set up. The store
+// also owns the auth surface: anonymous by default, upgradeable to an email
+// account (same user id → chats are kept), plus sign in / sign out.
 
 import {
   createContext,
@@ -14,9 +15,19 @@ import {
   useRef,
   useState,
 } from "react";
+import type { User } from "@supabase/supabase-js";
 import type { Session, Turn, WhiteboardStep } from "./types";
 import { uid } from "./mockAI";
-import { ensureAuth, getSupabase, supabaseConfigured } from "./supabase";
+import {
+  ensureAuth,
+  getSupabase,
+  signInEmail,
+  signOutToAnon,
+  signUpEmail,
+  supabaseConfigured,
+  toLoreUser,
+  type LoreUser,
+} from "./supabase";
 
 const STORAGE_KEY = "lore.sessions.v1";
 type Mode = "supabase" | "local";
@@ -26,12 +37,16 @@ interface StoreValue {
   hydrated: boolean;
   /** true once chats are backed by Supabase (server-persisted) */
   synced: boolean;
+  user: LoreUser | null;
   createSession: () => Session;
   getSession: (id: string) => Session | undefined;
   updateSession: (id: string, patch: Partial<Session>) => void;
   addTurn: (id: string, turn: Turn) => void;
   setWhiteboard: (id: string, steps: WhiteboardStep[]) => void;
   deleteSession: (id: string) => void;
+  signUp: (email: string, password: string) => Promise<{ needsConfirm: boolean }>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const StoreCtx = createContext<StoreValue | null>(null);
@@ -40,6 +55,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [synced, setSynced] = useState(false);
+  const [user, setUser] = useState<LoreUser | null>(null);
 
   const modeRef = useRef<Mode>("local");
   const userIdRef = useRef<string | null>(null);
@@ -50,44 +66,65 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sessionsRef.current = sessions;
   }, [sessions]);
 
-  // ─── hydrate: Supabase if available, else localStorage ─────────
+  // ─── loaders ───────────────────────────────────────────────────
+  const loadLocal = useCallback(() => {
+    modeRef.current = "local";
+    setSynced(false);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      setSessions(raw ? (JSON.parse(raw) as Session[]) : []);
+    } catch {
+      setSessions([]); // corrupt store — start clean
+    }
+  }, []);
+
+  // Load a user's chats from Supabase; fall back to local if the table isn't
+  // there yet. Always updates the current user.
+  const loadForUser = useCallback(
+    async (u: User) => {
+      setUser(toLoreUser(u));
+      const supa = getSupabase();
+      if (!supa) {
+        loadLocal();
+        return;
+      }
+      const { data, error } = await supa
+        .from("chats")
+        .select("data")
+        .eq("user_id", u.id)
+        .order("last_active", { ascending: false });
+      if (!error && data) {
+        userIdRef.current = u.id;
+        modeRef.current = "supabase";
+        setSessions(data.map((r) => r.data as Session));
+        setSynced(true);
+      } else {
+        loadLocal(); // table missing → local until schema is applied
+      }
+    },
+    [loadLocal],
+  );
+
+  // ─── hydrate on mount ──────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (supabaseConfigured()) {
-        const userId = await ensureAuth();
-        const supa = getSupabase();
-        if (userId && supa) {
-          const { data, error } = await supa
-            .from("chats")
-            .select("data")
-            .eq("user_id", userId)
-            .order("last_active", { ascending: false });
-          if (!cancelled && !error && data) {
-            userIdRef.current = userId;
-            modeRef.current = "supabase";
-            setSessions(data.map((r) => r.data as Session));
-            setSynced(true);
-            setHydrated(true);
-            return;
-          }
+        const u = await ensureAuth();
+        if (!cancelled && u) {
+          await loadForUser(u);
+          if (!cancelled) setHydrated(true);
+          return;
         }
       }
-      // Fallback: localStorage (Supabase unconfigured, anon disabled, or no table)
       if (cancelled) return;
-      modeRef.current = "local";
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) setSessions(JSON.parse(raw) as Session[]);
-      } catch {
-        /* corrupt store — start clean */
-      }
+      loadLocal();
       setHydrated(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadForUser, loadLocal]);
 
   // ─── persistence helpers ───────────────────────────────────────
   const scheduleLocalSave = useCallback(() => {
@@ -191,28 +228,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [removeRow],
   );
 
+  // ─── auth actions ──────────────────────────────────────────────
+  const signUp = useCallback(
+    async (email: string, password: string) => {
+      const { user: u, needsConfirm } = await signUpEmail(email, password);
+      if (u && !needsConfirm) await loadForUser(u);
+      else if (u) setUser(toLoreUser(u));
+      return { needsConfirm };
+    },
+    [loadForUser],
+  );
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const u = await signInEmail(email, password);
+      await loadForUser(u);
+    },
+    [loadForUser],
+  );
+
+  const signOut = useCallback(async () => {
+    const u = await signOutToAnon();
+    if (u) await loadForUser(u);
+    else {
+      setUser(null);
+      loadLocal();
+    }
+  }, [loadForUser, loadLocal]);
+
   const value = useMemo<StoreValue>(
     () => ({
       sessions,
       hydrated,
       synced,
+      user,
       createSession,
       getSession,
       updateSession,
       addTurn,
       setWhiteboard,
       deleteSession,
+      signUp,
+      signIn,
+      signOut,
     }),
     [
       sessions,
       hydrated,
       synced,
+      user,
       createSession,
       getSession,
       updateSession,
       addTurn,
       setWhiteboard,
       deleteSession,
+      signUp,
+      signIn,
+      signOut,
     ],
   );
 

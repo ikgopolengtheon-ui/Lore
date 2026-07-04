@@ -21,6 +21,7 @@ import type { ErrorKey } from "@/lib/errors";
 import { Header } from "./Header";
 import { Toaster } from "./Toast";
 import { Icon } from "./Icon";
+import { AccountButton } from "./AccountButton";
 import { Dashboard } from "./screens/Dashboard";
 import { Upload } from "./screens/Upload";
 import { Processing } from "./screens/Processing";
@@ -225,12 +226,16 @@ export function LoreApp() {
   );
 
   // ─── render ────────────────────────────────────────────────────
-  const headerRight =
-    view === "session" && active ? (
-      <span className="hidden text-xs text-dusk sm:block">
-        {stage === "quiz" ? "Quiz" : "Study"} · {active.title}
-      </span>
-    ) : null;
+  const headerRight = (
+    <>
+      {view === "session" && active && (
+        <span className="hidden text-xs text-dusk md:block">
+          {stage === "quiz" ? "Quiz" : "Study"} · {active.title}
+        </span>
+      )}
+      <AccountButton />
+    </>
+  );
 
   return (
     <div className="flex min-h-dvh flex-col">
