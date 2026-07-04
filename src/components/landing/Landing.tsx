@@ -83,13 +83,13 @@ export function Landing() {
             >
               Try the demo
             </Link>
-            <a
-              href="#waitlist"
+            <Link
+              href="/waitlist"
               data-magnetic
               className="rounded-lg bg-amber px-4 py-2 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
             >
               Join waitlist
-            </a>
+            </Link>
           </div>
         </nav>
       </header>
