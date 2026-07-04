@@ -5,6 +5,7 @@
 // new device. Hidden entirely when Supabase isn't configured.
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useStore } from "@/lib/store";
 import { supabaseConfigured } from "@/lib/supabase";
 import { Icon } from "./Icon";
@@ -79,7 +80,10 @@ function AccountModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  return (
+  // Portal to <body>: the header's backdrop-filter would otherwise become
+  // the containing block for this fixed overlay, pinning it to the header
+  // strip instead of the viewport.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-void/70 p-4 backdrop-blur-sm"
       onClick={onClose}
@@ -178,6 +182,7 @@ function AccountModal({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
