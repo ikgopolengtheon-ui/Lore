@@ -22,6 +22,7 @@ export type IconName =
   | "image"
   | "sparkle"
   | "chevron"
+  | "check"
   | "wifi-off";
 
 const paths: Record<IconName, React.ReactNode> = {
@@ -136,6 +137,7 @@ const paths: Record<IconName, React.ReactNode> = {
     />
   ),
   chevron: <path d="M5.5 9L12 15.5L18.5 9" />,
+  check: <path d="M4 12.5L9.5 18.5L20 6.5" />,
   "wifi-off": (
     <>
       <path d="M2 8.5Q7 4.5 12 4.5" opacity=".45" />

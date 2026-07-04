@@ -32,3 +32,14 @@ create policy "own chats delete" on public.chats
 
 create index if not exists chats_user_active
   on public.chats (user_id, last_active desc);
+
+-- Waitlist for the marketing landing page. Writes go through /api/waitlist
+-- using the secret key (service role), which bypasses RLS. RLS is enabled with
+-- no policies so the public/anon key can neither read nor write it.
+create table if not exists public.waitlist (
+  id         uuid primary key default gen_random_uuid(),
+  email      text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table public.waitlist enable row level security;
