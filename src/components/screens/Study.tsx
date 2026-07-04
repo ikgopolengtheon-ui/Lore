@@ -14,6 +14,7 @@ import {
 } from "@/lib/mockAI";
 import { askLore } from "@/lib/chatClient";
 import { GROUNDING_MISS } from "@/lib/grounding";
+import type { SttResult } from "@/lib/sttStream";
 import { useStore } from "@/lib/store";
 import { MicButton } from "../MicButton";
 import { Whiteboard } from "../Whiteboard";
@@ -215,26 +216,27 @@ export function Study({
     runResponseRef.current = runResponse;
   }, [runResponse]);
 
-  // Push-to-talk release: transcribe the clip (Deepgram), then answer.
+  // Push-to-talk release: a live-streamed transcript arrives directly; if not,
+  // fall back to prerecorded /api/stt on the clip, or mock STT when no mic.
   const handleQuestion = useCallback(
-    async (audio: Blob | null) => {
+    async (result: SttResult) => {
       stopAudio();
       setStudyState("thinking");
 
-      let transcript = "";
-      if (audio) {
+      let transcript = (result.transcript ?? "").trim();
+      if (!transcript && result.audio) {
         try {
           const res = await fetch("/api/stt", {
             method: "POST",
-            headers: { "Content-Type": audio.type || "audio/webm" },
-            body: audio,
+            headers: { "Content-Type": result.audio.type || "audio/webm" },
+            body: result.audio,
           });
           const data = await res.json();
           transcript = (data.transcript || "").trim();
         } catch {
           transcript = "";
         }
-      } else {
+      } else if (!transcript && !result.audio) {
         transcript = mockTranscribe(); // simulated fallback (no real mic)
       }
 

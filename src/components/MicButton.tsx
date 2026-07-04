@@ -10,13 +10,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { openLiveStt, type LiveStt, type SttResult } from "@/lib/sttStream";
 
 const MIN_RECORD_MS = 500; // < 0.5s → "hold a little longer" (PRD §5)
 
 interface Props {
   disabled?: boolean;
-  /** recorded clip on release, or null when no real mic (simulated fallback) */
-  onQuestion: (audio: Blob | null) => void;
+  /** streamed transcript when available, else the recorded clip for /api/stt */
+  onQuestion: (result: SttResult) => void;
   onTooShort: () => void;
   onPermissionDenied: () => void;
 }
@@ -48,6 +49,9 @@ export function MicButton({
   const simRef = useRef(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const liveRef = useRef<LiveStt | null>(null);
+  const liveSentRef = useRef(0);
+  const listeningRef = useRef(false);
 
   const cleanup = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -59,6 +63,8 @@ export function MicButton({
       ctxRef.current.close().catch(() => {});
     }
     ctxRef.current = null;
+    liveRef.current?.abort();
+    liveRef.current = null;
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -103,6 +109,9 @@ export function MicButton({
   const start = useCallback(async () => {
     if (disabled || listening) return;
     startedAt.current = Date.now();
+    listeningRef.current = true;
+    liveRef.current = null;
+    liveSentRef.current = 0;
     setListening(true);
 
     // Resume AudioContext on the user gesture (Safari, PRD §9.2)
@@ -124,16 +133,37 @@ export function MicButton({
       analyserRef.current = analyser;
       simRef.current = false;
 
-      // Record the clip so it can be sent to STT on release.
+      // Record the clip (kept for the prerecorded fallback) and stream each
+      // chunk to Deepgram live for real-time transcription (PRD §4.4).
       try {
         const mime = pickMime();
         const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
         chunksRef.current = [];
         rec.ondataavailable = (e) => {
-          if (e.data.size) chunksRef.current.push(e.data);
+          if (!e.data.size) return;
+          chunksRef.current.push(e.data);
+          if (liveRef.current) {
+            liveRef.current.send(e.data);
+            liveSentRef.current = chunksRef.current.length;
+          }
         };
         rec.start(250); // timeslice so Safari flushes data (PRD §9.2)
         recorderRef.current = rec;
+
+        // Open the streaming socket in parallel; forward any chunks captured
+        // before it connected. Falls back silently to prerecorded on failure.
+        openLiveStt().then((live) => {
+          if (!live) return;
+          if (!listeningRef.current) {
+            live.abort();
+            return;
+          }
+          liveRef.current = live;
+          for (let i = liveSentRef.current; i < chunksRef.current.length; i++) {
+            live.send(chunksRef.current[i]);
+          }
+          liveSentRef.current = chunksRef.current.length;
+        });
       } catch {
         recorderRef.current = null; // no recorder → STT falls back to mock
       }
@@ -158,6 +188,7 @@ export function MicButton({
     if (!listening) return;
     const duration = Date.now() - startedAt.current;
     setListening(false);
+    listeningRef.current = false;
     setBars(new Array(28).fill(0.08));
     // stop the waveform loop immediately; keep the stream alive until the
     // recorder finishes flushing so no audio is lost.
@@ -167,8 +198,11 @@ export function MicButton({
 
     const rec = recorderRef.current;
     recorderRef.current = null;
+    const live = liveRef.current;
+    liveRef.current = null;
 
     if (duration < MIN_RECORD_MS) {
+      live?.abort();
       if (rec && rec.state !== "inactive") {
         rec.ondataavailable = null;
         rec.onstop = null;
@@ -182,20 +216,30 @@ export function MicButton({
     }
 
     if (rec && rec.state !== "inactive") {
-      rec.onstop = () => {
+      rec.onstop = async () => {
         const blob = new Blob(chunksRef.current, {
           type: rec.mimeType || "audio/webm",
         });
-        cleanup();
-        onQuestion(blob.size ? blob : null);
+        if (live) {
+          const transcript = await live.finish();
+          cleanup();
+          // Use the streamed transcript; fall back to the clip if it came back
+          // empty (Study then tries prerecorded /api/stt).
+          if (transcript) onQuestion({ transcript });
+          else onQuestion({ audio: blob.size ? blob : null });
+        } else {
+          cleanup();
+          onQuestion({ audio: blob.size ? blob : null });
+        }
       };
       try {
         rec.requestData();
       } catch {}
       rec.stop();
     } else {
+      live?.abort();
       cleanup();
-      onQuestion(null); // simulated fallback — Study uses mock STT
+      onQuestion({ audio: null }); // simulated fallback — Study uses mock STT
     }
   }, [listening, cleanup, onTooShort, onQuestion]);
 
