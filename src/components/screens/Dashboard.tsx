@@ -3,8 +3,10 @@
 // Screen 1 — Chat Dashboard (PRD §5). Lists previous sessions with document
 // name + last-active, and a prominent New Chat entry point.
 
+import Link from "next/link";
 import type { Session } from "@/lib/types";
 import { timeAgo } from "@/lib/format";
+import { useStore } from "@/lib/store";
 import { Icon } from "../Icon";
 import { Button } from "../Button";
 
@@ -16,6 +18,7 @@ interface Props {
 }
 
 export function Dashboard({ sessions, onNewChat, onOpen, onDelete }: Props) {
+  const { user } = useStore();
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
       <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -50,11 +53,21 @@ export function Dashboard({ sessions, onNewChat, onOpen, onDelete }: Props) {
         </ul>
       )}
 
-      <p className="mt-10 flex items-center justify-center gap-2 text-center text-xs text-faint">
-        <Icon name="info" size={14} />
-        You&rsquo;re browsing anonymously. Create an account to keep chats across
-        devices.
-      </p>
+      {!user?.email && (
+        <p className="mt-10 flex items-center justify-center gap-2 text-center text-xs text-faint">
+          <Icon name="info" size={14} />
+          <span>
+            You&rsquo;re browsing anonymously.{" "}
+            <Link
+              href="/auth"
+              className="text-amber underline underline-offset-2 transition-colors hover:text-amber-lt"
+            >
+              Create an account
+            </Link>{" "}
+            to keep chats across devices.
+          </span>
+        </p>
+      )}
     </main>
   );
 }
