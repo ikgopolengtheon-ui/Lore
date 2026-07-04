@@ -1,10 +1,10 @@
 "use client";
 
-// Screen 3 — Processing (PRD §5). Non-interactive; cycles status messages and
-// a 4-step indicator, then auto-advances. Image sessions surface the vision
-// OCR advisory (PRD §4.5).
+// Screen 3 — Processing (PRD §5). Non-interactive visual state shown while the
+// document is extracted/indexed. Cycles status messages until the parent
+// advances the stage (real extraction drives the transition, not a timer).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { LogoMark } from "../Logo";
 
 const STEPS = [
@@ -16,26 +16,17 @@ const STEPS = [
 
 interface Props {
   isImage: boolean;
-  onDone: () => void;
 }
 
-export function Processing({ isImage, onDone }: Props) {
+export function Processing({ isImage }: Props) {
   const [step, setStep] = useState(0);
-  const doneRef = useRef(onDone);
-  useEffect(() => {
-    doneRef.current = onDone;
-  });
 
   useEffect(() => {
-    const perStep = 900;
-    const timers = STEPS.map((_, i) =>
-      setTimeout(() => setStep(i), i * perStep),
+    const t = setInterval(
+      () => setStep((s) => (s + 1) % STEPS.length),
+      900,
     );
-    const finish = setTimeout(() => doneRef.current(), STEPS.length * perStep);
-    return () => {
-      timers.forEach(clearTimeout);
-      clearTimeout(finish);
-    };
+    return () => clearInterval(t);
   }, []);
 
   return (
@@ -62,8 +53,9 @@ export function Processing({ isImage, onDone }: Props) {
         ))}
       </div>
       <p className="text-xs text-dusk">
-        Step {step + 1} of {STEPS.length} · This takes 10–30 seconds for most
-        documents.
+        {isImage
+          ? "Reading the text in your photos…"
+          : "This takes 10–30 seconds for most documents."}
       </p>
 
       {isImage && (

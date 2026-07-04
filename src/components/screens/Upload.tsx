@@ -20,7 +20,9 @@ import { Icon } from "../Icon";
 import { Button } from "../Button";
 
 interface Props {
-  onStart: (files: UploadedFile[]) => void;
+  // raw File objects are passed alongside metadata so processing can extract
+  // text server-side (they can't be stored in the session/localStorage).
+  onStart: (files: UploadedFile[], raw: Record<string, File>) => void;
 }
 
 export function Upload({ onStart }: Props) {
@@ -28,6 +30,7 @@ export function Upload({ onStart }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const rawRef = useRef<Record<string, File>>({});
 
   const addFiles = useCallback(
     (incoming: FileList | File[]) => {
@@ -115,6 +118,7 @@ export function Upload({ onStart }: Props) {
               )
               .catch(() => {});
           }
+          rawRef.current[uf.id] = f;
           next.push(uf);
         }
         return next;
@@ -129,8 +133,10 @@ export function Upload({ onStart }: Props) {
     if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
   };
 
-  const remove = (id: string) =>
+  const remove = (id: string) => {
+    delete rawRef.current[id];
     setFiles((prev) => prev.filter((x) => x.id !== id));
+  };
 
   const kindLabel =
     files[0]?.kind === "image"
@@ -233,7 +239,7 @@ export function Upload({ onStart }: Props) {
           ))}
 
           <Button
-            onClick={() => onStart(files)}
+            onClick={() => onStart(files, rawRef.current)}
             className="mt-2 w-full sm:w-auto sm:self-start"
           >
             Start Studying{kindLabel ? ` · ${kindLabel}` : ""}

@@ -90,3 +90,14 @@ export interface ToastMsg {
   text: string;
   tone?: "neutral" | "error" | "success";
 }
+
+/** result of POST /api/extract for a single file */
+export interface ExtractResult {
+  ok: boolean;
+  kind?: FileKind;
+  text: string;
+  scanned?: boolean; // document had no selectable text (Screen 8.4)
+  imageEmpty?: boolean; // vision returned nothing usable (Screen 8.11)
+  unsupported?: boolean; // format not parsed yet (e.g. pptx)
+  error?: string; // hard processing failure (Screen 8.3)
+}

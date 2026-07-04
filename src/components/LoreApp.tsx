@@ -5,10 +5,17 @@
 // the screen components. Session data itself lives in the localStorage store.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AppView, SessionStage, ToastMsg, UploadedFile } from "@/lib/types";
+import type {
+  AppView,
+  ExtractResult,
+  SessionStage,
+  ToastMsg,
+  UploadedFile,
+} from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { uid } from "@/lib/mockAI";
 import { fileExt } from "@/lib/constants";
+import { extractFile } from "@/lib/extractClient";
 import type { ErrorKey } from "@/lib/errors";
 
 import { Header } from "./Header";
@@ -86,34 +93,77 @@ export function LoreApp() {
   );
 
   const handleUploadStart = useCallback(
-    (files: UploadedFile[]) => {
+    async (files: UploadedFile[], raw: Record<string, File>) => {
       if (!activeId) return;
+      const id = activeId;
       const first = files[0];
-      const title =
-        first.kind === "image"
-          ? `Photo notes (${files.length})`
-          : first.name.replace(/\.[^.]+$/, "");
-      // Combine extracted text in upload order — multi-image sessions and any
-      // future multi-doc combine here into one grounding corpus (PRD §4.5).
-      const documentText = files
-        .map((f) => f.extractedText ?? "")
-        .filter(Boolean)
-        .join("\n\n");
-      // Word count from real text when available; otherwise a mock stand-in so
-      // the quiz gate still behaves until PDF/OCR extraction lands.
-      const wordCount = documentText
-        ? documentText.split(/\s+/).filter(Boolean).length
-        : 250 + Math.floor(Math.random() * 900);
-      store.updateSession(activeId, {
+      const isImage = first.kind === "image";
+      const title = isImage
+        ? `Photo notes (${files.length})`
+        : first.name.replace(/\.[^.]+$/, "");
+
+      // show Processing immediately with the file metadata
+      store.updateSession(id, {
         title,
         files,
-        wordCount,
-        documentText,
         subject: guessSubject(first.name),
       });
       setStage("processing");
+
+      // Extract text for every file (TXT already read client-side; others go
+      // through /api/extract). Keep a floor so Processing doesn't just flash.
+      const sleep = new Promise((r) => setTimeout(r, 1200));
+      const [results] = await Promise.all([
+        Promise.all(
+          files.map(async (f): Promise<ExtractResult> => {
+            if (f.extractedText !== undefined) {
+              return { ok: true, kind: f.kind, text: f.extractedText };
+            }
+            const file = raw[f.id];
+            if (!file) return { ok: true, kind: f.kind, text: "" };
+            return extractFile(file);
+          }),
+        ),
+        sleep,
+      ]);
+
+      // Combine extracted text in upload order → one grounding corpus (§4.5).
+      const documentText = results
+        .map((r) => r.text)
+        .filter(Boolean)
+        .join("\n\n")
+        .trim();
+
+      // Failure routing (PRD Screen 8.3 / 8.4 / 8.11).
+      const hardError = results.some((r) => r.error);
+      if (hardError) {
+        setErrorKey("processing-failed");
+        return;
+      }
+      if (!documentText) {
+        if (isImage) setErrorKey("image-extract");
+        else setErrorKey(results.some((r) => r.scanned) ? "scanned-doc" : "processing-failed");
+        return;
+      }
+
+      // Partial-quality advisories (non-blocking, PRD §4.5/§4.6).
+      if (isImage && results.some((r) => r.imageEmpty)) {
+        pushToast("Some photos had no readable text and were skipped.");
+      }
+      if (results.some((r) => r.unsupported)) {
+        pushToast("Some content (like slides) couldn't be read and was skipped.");
+      }
+      if (!isImage && results.some((r) => r.scanned)) {
+        pushToast("Part of this document had no selectable text.");
+      }
+
+      store.updateSession(id, {
+        documentText,
+        wordCount: documentText.split(/\s+/).filter(Boolean).length,
+      });
+      setStage("study");
     },
-    [activeId, store],
+    [activeId, store, pushToast],
   );
 
   // ─── error triggers ────────────────────────────────────────────
@@ -194,10 +244,7 @@ export function LoreApp() {
       ) : stage === "upload" ? (
         <Upload onStart={handleUploadStart} />
       ) : stage === "processing" ? (
-        <Processing
-          isImage={isImageSession}
-          onDone={() => setStage("study")}
-        />
+        <Processing isImage={isImageSession} />
       ) : stage === "quiz" ? (
         <Quiz
           session={active}
