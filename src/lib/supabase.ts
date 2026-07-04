@@ -41,6 +41,24 @@ export function getSupabase(): SupabaseClient | null {
   return client;
 }
 
+// When the page is loading with an OAuth callback in the URL (?code= from
+// Google), supabase-js exchanges it for a session asynchronously. Wait for
+// that to finish instead of racing it — otherwise ensureAuth would create a
+// fresh anonymous session and strand the OAuth login.
+async function waitForOAuthSession(supa: SupabaseClient): Promise<User | null> {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("code")) return null;
+  for (let i = 0; i < 25; i++) {
+    const {
+      data: { session },
+    } = await supa.auth.getSession();
+    if (session?.user) return session.user;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return null;
+}
+
 // Return the current user id, signing in anonymously if needed. Returns null
 // when Supabase is unconfigured or anonymous sign-ins are disabled (422) — the
 // caller then uses localStorage.
@@ -52,6 +70,8 @@ export async function ensureAuth(): Promise<User | null> {
       data: { session },
     } = await supa.auth.getSession();
     if (session?.user) return session.user;
+    const oauthUser = await waitForOAuthSession(supa);
+    if (oauthUser) return oauthUser;
     const { data, error } = await supa.auth.signInAnonymously();
     if (error) return null;
     return data.user ?? null;
@@ -86,6 +106,34 @@ export async function signUpEmail(
   if (error) throw error;
   // No session means email confirmation is required.
   return { user: data.user, needsConfirm: !data.session };
+}
+
+// Sign in / sign up with Google (OAuth redirect flow). An anonymous user is
+// first offered an identity link — same user id, so their chats are kept;
+// this needs "manual linking" enabled in the Supabase dashboard. If linking
+// is unavailable, fall back to a plain OAuth sign-in. Either way the browser
+// leaves for Google and returns to /app with a code supabase-js exchanges.
+export async function signInWithGoogle(): Promise<void> {
+  const supa = getSupabase();
+  if (!supa) throw new Error("Accounts aren't available right now.");
+  const redirectTo = `${window.location.origin}/app`;
+  const {
+    data: { user: current },
+  } = await supa.auth.getUser();
+
+  if (current?.is_anonymous) {
+    const { error } = await supa.auth.linkIdentity({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (!error) return; // browser is redirecting
+  }
+
+  const { error } = await supa.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function signInEmail(
