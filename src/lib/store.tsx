@@ -1,8 +1,9 @@
 "use client";
 
-// Per-chat persistence model (PRD §11.1): sessions, transcript, and
-// whiteboard state persist across returns. Backed by localStorage to stand
-// in for Supabase in the prototype.
+// Per-chat persistence (PRD §11.1). Backed by Supabase when configured and
+// reachable (anonymous auth + a `chats` table with RLS), otherwise localStorage
+// so the app works before Supabase is set up. The context API stays synchronous
+// — persistence is a write-through side effect — so no consumer changes.
 
 import {
   createContext,
@@ -15,12 +16,16 @@ import {
 } from "react";
 import type { Session, Turn, WhiteboardStep } from "./types";
 import { uid } from "./mockAI";
+import { ensureAuth, getSupabase, supabaseConfigured } from "./supabase";
 
 const STORAGE_KEY = "lore.sessions.v1";
+type Mode = "supabase" | "local";
 
 interface StoreValue {
   sessions: Session[];
   hydrated: boolean;
+  /** true once chats are backed by Supabase (server-persisted) */
+  synced: boolean;
   createSession: () => Session;
   getSession: (id: string) => Session | undefined;
   updateSession: (id: string, patch: Partial<Session>) => void;
@@ -34,39 +39,99 @@ const StoreCtx = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [synced, setSynced] = useState(false);
+
+  const modeRef = useRef<Mode>("local");
+  const userIdRef = useRef<string | null>(null);
+  const sessionsRef = useRef<Session[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Hydrate once on mount. We intentionally render empty first and populate
-  // from localStorage after mount — reading storage during render would cause
-  // an SSR/client hydration mismatch. This is external-store synchronisation,
-  // which the set-state-in-effect heuristic can't distinguish, so scope-disable.
   useEffect(() => {
-    let restored: Session[] = [];
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) restored = JSON.parse(raw) as Session[];
-    } catch {
-      /* corrupt store — start clean (surfaces as Screen 8.9 on restore) */
-    }
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setSessions(restored);
-    setHydrated(true);
-    /* eslint-enable react-hooks/set-state-in-effect */
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
+  // ─── hydrate: Supabase if available, else localStorage ─────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (supabaseConfigured()) {
+        const userId = await ensureAuth();
+        const supa = getSupabase();
+        if (userId && supa) {
+          const { data, error } = await supa
+            .from("chats")
+            .select("data")
+            .eq("user_id", userId)
+            .order("last_active", { ascending: false });
+          if (!cancelled && !error && data) {
+            userIdRef.current = userId;
+            modeRef.current = "supabase";
+            setSessions(data.map((r) => r.data as Session));
+            setSynced(true);
+            setHydrated(true);
+            return;
+          }
+        }
+      }
+      // Fallback: localStorage (Supabase unconfigured, anon disabled, or no table)
+      if (cancelled) return;
+      modeRef.current = "local";
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) setSessions(JSON.parse(raw) as Session[]);
+      } catch {
+        /* corrupt store — start clean */
+      }
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // debounced persistence
-  useEffect(() => {
-    if (!hydrated) return;
+  // ─── persistence helpers ───────────────────────────────────────
+  const scheduleLocalSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionsRef.current));
       } catch {
-        /* storage full / unavailable — non-fatal in prototype */
+        /* storage full/unavailable — non-fatal */
       }
     }, 250);
-  }, [sessions, hydrated]);
+  }, []);
 
+  const persist = useCallback(
+    (s: Session) => {
+      if (modeRef.current === "supabase" && userIdRef.current) {
+        getSupabase()
+          ?.from("chats")
+          .upsert({
+            id: s.id,
+            user_id: userIdRef.current,
+            data: s,
+            last_active: new Date(s.lastActive).toISOString(),
+          })
+          .then(() => {}); // best-effort; in-memory state is source of truth
+      } else {
+        scheduleLocalSave();
+      }
+    },
+    [scheduleLocalSave],
+  );
+
+  const removeRow = useCallback(
+    (id: string) => {
+      if (modeRef.current === "supabase") {
+        getSupabase()?.from("chats").delete().eq("id", id).then(() => {});
+      } else {
+        scheduleLocalSave();
+      }
+    },
+    [scheduleLocalSave],
+  );
+
+  // ─── mutations (compute next from ref → set state → persist) ────
   const createSession = useCallback((): Session => {
     const now = Date.now();
     const s: Session = {
@@ -80,46 +145,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wordCount: 0,
     };
     setSessions((prev) => [s, ...prev]);
+    persist(s);
     return s;
-  }, []);
+  }, [persist]);
 
   const getSession = useCallback(
     (id: string) => sessions.find((s) => s.id === id),
     [sessions],
   );
 
-  const updateSession = useCallback((id: string, patch: Partial<Session>) => {
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, ...patch, lastActive: Date.now() } : s,
-      ),
-    );
-  }, []);
+  const commit = useCallback(
+    (id: string, mutate: (s: Session) => Session) => {
+      const cur = sessionsRef.current.find((s) => s.id === id);
+      if (!cur) return;
+      const next = { ...mutate(cur), lastActive: Date.now() };
+      setSessions((prev) => prev.map((s) => (s.id === id ? next : s)));
+      persist(next);
+    },
+    [persist],
+  );
 
-  const addTurn = useCallback((id: string, turn: Turn) => {
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, turns: [...s.turns, turn], lastActive: Date.now() }
-          : s,
-      ),
-    );
-  }, []);
+  const updateSession = useCallback(
+    (id: string, patch: Partial<Session>) =>
+      commit(id, (s) => ({ ...s, ...patch })),
+    [commit],
+  );
 
-  const setWhiteboard = useCallback((id: string, steps: WhiteboardStep[]) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, whiteboard: steps } : s)),
-    );
-  }, []);
+  const addTurn = useCallback(
+    (id: string, turn: Turn) =>
+      commit(id, (s) => ({ ...s, turns: [...s.turns, turn] })),
+    [commit],
+  );
 
-  const deleteSession = useCallback((id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+  const setWhiteboard = useCallback(
+    (id: string, steps: WhiteboardStep[]) =>
+      commit(id, (s) => ({ ...s, whiteboard: steps })),
+    [commit],
+  );
+
+  const deleteSession = useCallback(
+    (id: string) => {
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      removeRow(id);
+    },
+    [removeRow],
+  );
 
   const value = useMemo<StoreValue>(
     () => ({
       sessions,
       hydrated,
+      synced,
       createSession,
       getSession,
       updateSession,
@@ -130,6 +206,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [
       sessions,
       hydrated,
+      synced,
       createSession,
       getSession,
       updateSession,
