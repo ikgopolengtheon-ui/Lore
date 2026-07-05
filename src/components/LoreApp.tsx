@@ -6,7 +6,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabaseConfigured } from "@/lib/supabase";
 import type {
   AppView,
   ExtractResult,
@@ -34,6 +35,7 @@ import { StatePreview } from "./StatePreview";
 
 export function LoreApp() {
   const store = useStore();
+  const router = useRouter();
   const [view, setView] = useState<AppView>("dashboard");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [stage, setStage] = useState<SessionStage>("upload");
@@ -44,6 +46,15 @@ export function LoreApp() {
 
   const active = activeId ? store.getSession(activeId) : undefined;
   const isImageSession = active?.files[0]?.kind === "image";
+
+  // Chat mode requires an account — no anonymous studying. Anyone without a
+  // signed-in email is sent to /auth once the store has resolved the user.
+  const requireAuth = supabaseConfigured();
+  const signedIn = Boolean(store.user?.email);
+  useEffect(() => {
+    if (!requireAuth || !store.hydrated || signedIn) return;
+    router.replace("/auth?mode=signin");
+  }, [requireAuth, store.hydrated, signedIn, router]);
 
   // ─── toasts ────────────────────────────────────────────────────
   const pushToast = useCallback(
@@ -106,6 +117,7 @@ export function LoreApp() {
      query is stripped; the state isn't derivable during render. */
   useEffect(() => {
     if (deepLinkDone.current || !store.hydrated) return;
+    if (requireAuth && !signedIn) return; // gate redirects; don't create chats
     const clean = () => window.history.replaceState(null, "", "/app");
     if (params.get("new")) {
       deepLinkDone.current = true;
@@ -131,7 +143,7 @@ export function LoreApp() {
       deepLinkDone.current = true;
       clean();
     }
-  }, [params, store, newChat, openSession]);
+  }, [params, store, newChat, openSession, requireAuth, signedIn]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUploadStart = useCallback(
@@ -267,6 +279,26 @@ export function LoreApp() {
   );
 
   // ─── render ────────────────────────────────────────────────────
+  // Auth gate (after all hooks): anonymous visitors see a brief hand-off
+  // screen — no app chrome, no Log in / Sign up bar — while the redirect to
+  // /auth runs.
+  if (requireAuth && (!store.hydrated || !signedIn)) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-void px-6 text-center">
+        <div>
+          <p className="font-serif text-2xl text-cream">
+            {store.hydrated ? "Sign in to study" : "Loading…"}
+          </p>
+          {store.hydrated && (
+            <p className="mt-2 text-sm text-dusk">
+              Chat mode needs an account — taking you to sign in…
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const headerRight = (
     <>
       {view === "session" && active && (

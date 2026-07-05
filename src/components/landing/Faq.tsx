@@ -18,7 +18,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Can I try Lore before paying?",
-    a: "Yes — you get a sample exchange to feel how it works, and the live demo is open. Studying properly needs a plan, though: there's no unlimited free tier, which is what keeps the voice quality high.",
+    a: "Yes — create a free account and you get a sample exchange to feel how it works. Studying needs an account and a plan, though: there's no anonymous use and no unlimited free tier, which is what keeps the voice quality high.",
   },
   {
     q: "What happens when my premium voice hours run out?",

@@ -260,6 +260,28 @@ export function Study({
     [addTurn, session.id, runResponse, pushToast, stopAudio],
   );
 
+  // Typed questions enter the same pipeline as voice — voice stays the
+  // primary input; this is the quiet fallback for silent rooms.
+  const [draft, setDraft] = useState("");
+  const askTyped = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const q = draft.trim();
+      if (!q || studyState !== "idle") return;
+      setDraft("");
+      stopAudio();
+      setStudyState("thinking");
+      addTurn(session.id, {
+        id: uid(),
+        role: "student",
+        text: q,
+        createdAt: Date.now(),
+      });
+      setTimeout(() => runResponse(q), 300);
+    },
+    [draft, studyState, stopAudio, addTurn, session.id, runResponse],
+  );
+
   const togglePause = useCallback(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -422,6 +444,31 @@ export function Study({
               onPermissionDenied={onMicDenied}
             />
           </div>
+
+          {/* typed fallback — voice first, keyboard second */}
+          <form
+            onSubmit={askTyped}
+            className="flex w-full max-w-xl items-center gap-2 rounded-full border border-line-m bg-carbon py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-amber/50"
+          >
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Prefer to type? Ask anything…"
+              aria-label="Type your question"
+              disabled={offline || studyState !== "idle"}
+              className="min-w-0 flex-1 bg-transparent text-sm text-cream outline-none placeholder:text-faint disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              aria-label="Send question"
+              disabled={offline || studyState !== "idle" || !draft.trim()}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber text-void transition-colors hover:bg-amber-lt disabled:opacity-40"
+            >
+              <Icon name="play" size={14} />
+            </button>
+          </form>
+
           {!hasSteps && studyState === "idle" && !offline && (
             <p className="text-center text-[11px] text-faint">
               Lore answers only from your uploaded material. Whiteboard opens
