@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Icon, type IconName } from "@/components/Icon";
 import { LandingMotion } from "./LandingMotion";
+import { Pricing } from "./Pricing";
 import { SiteFooter } from "./SiteFooter";
 import { WaitlistForm } from "./WaitlistForm";
 
@@ -75,8 +76,14 @@ export function Landing() {
             >
               Features
             </a>
+            <a
+              href="#pricing"
+              className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream sm:block"
+            >
+              Pricing
+            </a>
             <Link
-              href="/app"
+              href="/dashboard"
               className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream md:block"
             >
               Try the demo
@@ -262,6 +269,28 @@ export function Landing() {
           </div>
         </section>
 
+        {/* ── Pricing ── */}
+        <section id="pricing" className="mx-auto max-w-6xl px-5 py-24 sm:px-8">
+          <SectionHeading
+            eyebrow="Pricing"
+            title={
+              <>
+                One tutor. <span className="italic text-amber">Three paces.</span>
+              </>
+            }
+          />
+          <p
+            data-reveal
+            className="mx-auto mt-4 max-w-xl text-center text-sm leading-relaxed text-dusk"
+          >
+            Choose how much study time you need now, and upgrade when exams
+            heat up. Every plan is the full Lore — nothing core is held back.
+          </p>
+          <div className="mt-14">
+            <Pricing />
+          </div>
+        </section>
+
         {/* ── Voice section ── */}
         <section className="px-5 py-24 sm:px-8">
           <div
@@ -326,7 +355,7 @@ export function Landing() {
             <p className="mt-8 text-sm text-faint">
               Want a peek first?{" "}
               <Link
-                href="/app"
+                href="/dashboard"
                 className="text-amber underline underline-offset-2 hover:text-amber-lt"
               >
                 Try the live demo →
