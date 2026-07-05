@@ -1,0 +1,29 @@
+# CodeRabbit configuration — https://docs.coderabbit.ai/reference/configuration
+language: "en-US"
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    # Review PRs targeting main, plus the standing full-codebase review PR
+    # (head=main, base=codebase-review-base) that covers every push to main.
+    base_branches:
+      - "main"
+      - "codebase-review-base"
+  path_instructions:
+    - path: "src/**"
+      instructions: >-
+        Next.js 16 App Router with React 19, TypeScript, Tailwind CSS v4.
+        Watch for: server/client component boundary mistakes; any secret
+        (SUPABASE_SECRET_KEY, provider API keys) reaching client code — only
+        NEXT_PUBLIC_* env vars may appear in client components; accessibility
+        (focus states, aria labels, reduced-motion support); and animations
+        that touch layout properties instead of transform/opacity only.
+    - path: "src/app/api/**"
+      instructions: >-
+        API routes must validate input, never leak secrets or raw provider
+        errors to the client, and keep the service-role Supabase client
+        strictly server-side.
+chat:
+  auto_reply: true
