@@ -28,7 +28,7 @@ export function AuthScreen({ photo }: { photo: string | null }) {
             <Logo />
           </Link>
           <Link
-            href="/app"
+            href="/dashboard"
             className="text-sm text-dusk transition-colors hover:text-cream"
           >
             Back to the app
@@ -52,7 +52,7 @@ export function AuthScreen({ photo }: { photo: string | null }) {
             <p className="mt-6 text-xs text-faint">
               Just looking?{" "}
               <Link
-                href="/app"
+                href="/dashboard"
                 className="text-dusk underline underline-offset-2 transition-colors hover:text-cream"
               >
                 Continue without an account
@@ -128,7 +128,7 @@ function AuthCard() {
       } else {
         await signIn(email.trim(), password);
       }
-      router.push("/app");
+      router.push("/dashboard");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong. Try again.",
@@ -269,8 +269,11 @@ function SignedInCard() {
         chats sync across devices.
       </p>
       <div className="mt-5 flex flex-col gap-2">
-        <Button onClick={() => router.push("/app")} className="w-full py-3">
-          Go to your chats
+        <Button
+          onClick={() => router.push("/dashboard")}
+          className="w-full py-3"
+        >
+          Go to your dashboard
         </Button>
         <Button
           variant="secondary"

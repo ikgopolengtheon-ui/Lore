@@ -1,15 +1,16 @@
 "use client";
 
-// Analytics dashboard, modeled on a classic admin layout: sidebar, KPI stat
-// tiles, a study-hours bar chart with range filters, a mini calendar, a quiz
-// accuracy ring, and a recent-chats table. Single-series amber charts on the
-// lore-card surface; values and labels stay in text tokens (cream/dusk) —
-// colour only carries the marks. All data is representative mock data.
+// The app's home: live KPIs and recent chats from the session store, plus a
+// study-hours chart, calendar, and accuracy ring (representative data until
+// usage tracking lands — labeled as such). Single-series amber marks on the
+// lore-card surface; values and labels stay in text ink.
 
 import { useState } from "react";
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
-import { Icon, type IconName } from "@/components/Icon";
+import { useStore } from "@/lib/store";
+import { timeAgo } from "@/lib/format";
+import { Icon } from "@/components/Icon";
+import { AppShell } from "./AppShell";
 
 type RangeKey = "day" | "week" | "month" | "year";
 
@@ -43,72 +44,6 @@ const RANGES: Record<
   },
 };
 
-const KPIS = [
-  { label: "Study time", value: "23.9 h", delta: "+4.2%", up: true },
-  { label: "Questions asked", value: "342", delta: "+1.7%", up: true },
-  { label: "Documents", value: "12", delta: "+2.9%", up: true },
-  { label: "Quizzes taken", value: "23", delta: "+0.9%", up: true },
-];
-
-const NAV: { icon: IconName; label: string; active?: boolean }[] = [
-  { icon: "sparkle", label: "Dashboard", active: true },
-  { icon: "doc", label: "My chats" },
-  { icon: "quiz", label: "Quizzes" },
-  { icon: "whiteboard", label: "Whiteboards" },
-  { icon: "upload", label: "Uploads" },
-];
-
-const RECENT: {
-  icon: IconName;
-  doc: string;
-  subject: string;
-  questions: number;
-  active: string;
-  status: "mastered" | "progress" | "review";
-}[] = [
-  {
-    icon: "doc",
-    doc: "photosynthesis.pdf",
-    subject: "Biology",
-    questions: 24,
-    active: "2 h ago",
-    status: "mastered",
-  },
-  {
-    icon: "image",
-    doc: "Organic chem notes (photos)",
-    subject: "Chemistry",
-    questions: 18,
-    active: "yesterday",
-    status: "progress",
-  },
-  {
-    icon: "doc",
-    doc: "newtons-laws-slides.pptx",
-    subject: "Physics",
-    questions: 31,
-    active: "2 d ago",
-    status: "mastered",
-  },
-  {
-    icon: "doc",
-    doc: "ww2-essay-draft.docx",
-    subject: "History",
-    questions: 9,
-    active: "5 d ago",
-    status: "review",
-  },
-];
-
-const STATUS: Record<
-  "mastered" | "progress" | "review",
-  { label: string; dot: string }
-> = {
-  mastered: { label: "Mastered", dot: "bg-green" },
-  progress: { label: "In progress", dot: "bg-amber" },
-  review: { label: "Needs review", dot: "bg-red" },
-};
-
 const CAL_DAYS = [
   { d: "Wed", n: 1 },
   { d: "Thu", n: 2 },
@@ -117,119 +52,76 @@ const CAL_DAYS = [
   { d: "Sun", n: 5, today: true },
 ];
 
+function studentTurns(turnCount: { role: string }[]): number {
+  return turnCount.filter((t) => t.role === "student").length;
+}
+
 export function DashboardScreen() {
+  const store = useStore();
   const [range, setRange] = useState<RangeKey>("month");
   const data = RANGES[range];
   const max = data.ticks[data.ticks.length - 1];
 
+  const sessions = [...store.sessions].sort(
+    (a, b) => b.lastActive - a.lastActive,
+  );
+  const questionsAsked = sessions.reduce(
+    (n, s) => n + studentTurns(s.turns),
+    0,
+  );
+  const documents = sessions.reduce((n, s) => n + s.files.length, 0);
+  const recent = sessions.slice(0, 5);
+
+  const kpis = [
+    { label: "Study time", value: "23.9 h", delta: "+4.2%", mock: true },
+    {
+      label: "Questions asked",
+      value: String(questionsAsked),
+      delta: null,
+    },
+    { label: "Documents", value: String(documents), delta: null },
+    { label: "Quizzes taken", value: "23", delta: "+0.9%", mock: true },
+  ];
+
   return (
-    <div className="flex min-h-dvh bg-void">
-      {/* ── Sidebar ── */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-depth/40 p-5 lg:flex">
-        <Link href="/" aria-label="Lore home">
-          <Logo />
-        </Link>
-        <nav className="mt-8 flex flex-col gap-1">
-          {NAV.map((item) => (
-            <a
-              key={item.label}
-              href="#"
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                item.active
-                  ? "bg-carbon font-medium text-cream"
-                  : "text-dusk hover:bg-carbon/60 hover:text-cream"
-              }`}
-            >
-              <Icon name={item.icon} size={17} />
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="lore-card mt-8 p-4">
-          <p className="font-serif text-base text-cream">Upgrade to Pro</p>
-          <p className="mt-1.5 text-xs leading-relaxed text-dusk">
-            Unlimited voice questions, quizzes, and documents.
-          </p>
-          <button className="mt-3 w-full rounded-lg bg-amber px-3 py-2 text-xs font-semibold text-void transition-colors hover:bg-amber-lt">
-            Upgrade
-          </button>
-        </div>
-
-        <div className="mt-auto flex flex-col gap-1 pt-6">
-          <a
-            href="#"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-dusk transition-colors hover:bg-carbon/60 hover:text-cream"
-          >
-            <Icon name="info" size={17} />
-            Help Center
-          </a>
-          <Link
-            href="/app"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-dusk transition-colors hover:bg-carbon/60 hover:text-cream"
-          >
-            <Icon name="back" size={17} />
-            Back to the app
-          </Link>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <div className="min-w-0 flex-1 px-5 py-6 sm:px-8">
+    <AppShell active="dashboard">
+      <div className="min-w-0 px-5 py-6 sm:px-8">
         {/* header */}
         <header className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-serif text-2xl tracking-tight text-cream sm:text-3xl">
             Dashboard
           </h1>
-          <div className="flex items-center gap-3">
-            <label className="hidden items-center gap-2 rounded-full border border-line-m bg-carbon px-4 py-2 sm:flex">
-              <span className="text-faint">
-                <Icon name="sparkle" size={14} />
-              </span>
-              <input
-                type="search"
-                placeholder="Search…"
-                aria-label="Search"
-                className="w-40 bg-transparent text-sm text-cream outline-none placeholder:text-faint"
-              />
-            </label>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-amber/15 text-sm font-semibold text-amber">
-              T
+          <div className="flex flex-wrap items-center gap-3">
+            <div
+              className="flex rounded-full border border-line-m bg-carbon p-1"
+              role="tablist"
+              aria-label="Time range"
+            >
+              {(Object.keys(RANGES) as RangeKey[]).map((key) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={range === key}
+                  onClick={() => setRange(key)}
+                  className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    range === key
+                      ? "bg-amber text-void"
+                      : "text-dusk hover:text-cream"
+                  }`}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+            <span className="hidden rounded-full border border-line-m px-4 py-2 text-xs text-dusk sm:block">
+              {data.caption}
             </span>
           </div>
         </header>
 
-        {/* range filters */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <div
-            className="flex rounded-full border border-line-m bg-carbon p-1"
-            role="tablist"
-            aria-label="Time range"
-          >
-            {(Object.keys(RANGES) as RangeKey[]).map((key) => (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={range === key}
-                onClick={() => setRange(key)}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize transition-colors ${
-                  range === key
-                    ? "bg-amber text-void"
-                    : "text-dusk hover:text-cream"
-                }`}
-              >
-                {key}
-              </button>
-            ))}
-          </div>
-          <span className="rounded-full border border-line-m px-4 py-2 text-xs text-dusk">
-            {data.caption}
-          </span>
-        </div>
-
         {/* KPI tiles */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {KPIS.map((kpi, i) =>
+          {kpis.map((kpi, i) =>
             i === 0 ? (
               <div key={kpi.label} className="rounded-[1.75rem] bg-amber p-5">
                 <p className="text-xs font-medium text-void/70">{kpi.label}</p>
@@ -247,8 +139,14 @@ export function DashboardScreen() {
                   {kpi.value}
                 </p>
                 <p className="mt-1.5 text-xs text-dusk">
-                  <span className="text-green">↗ {kpi.delta}</span> from last{" "}
-                  {range}
+                  {kpi.delta ? (
+                    <>
+                      <span className="text-green">↗ {kpi.delta}</span> from
+                      last {range}
+                    </>
+                  ) : (
+                    "across all your chats"
+                  )}
                 </p>
               </div>
             ),
@@ -264,7 +162,6 @@ export function DashboardScreen() {
               <span className="text-xs text-faint">hours per {range}</span>
             </div>
             <div className="mt-6 flex gap-3">
-              {/* y axis */}
               <div
                 className="flex h-52 flex-col justify-between text-right font-mono text-[10px] text-faint"
                 aria-hidden
@@ -273,9 +170,7 @@ export function DashboardScreen() {
                   <span key={t}>{t}</span>
                 ))}
               </div>
-              {/* plot */}
               <div className="relative h-52 flex-1">
-                {/* recessive grid */}
                 <div
                   className="absolute inset-0 flex flex-col justify-between"
                   aria-hidden
@@ -302,7 +197,6 @@ export function DashboardScreen() {
                 </div>
               </div>
             </div>
-            {/* x labels */}
             <div className="mt-2 flex justify-around gap-2 pl-8">
               {data.labels.map((l) => (
                 <span
@@ -364,7 +258,7 @@ export function DashboardScreen() {
           </div>
         </div>
 
-        {/* recent chats table */}
+        {/* recent chats table — live from the store */}
         <div className="lore-card mt-4 p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-cream">Recent chats</h2>
@@ -372,57 +266,92 @@ export function DashboardScreen() {
               href="/app"
               className="text-xs text-amber transition-colors hover:text-amber-lt"
             >
-              Open the app →
+              All chats →
             </Link>
           </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-line text-xs text-faint">
-                  <th className="pb-3 font-medium">Document</th>
-                  <th className="pb-3 font-medium">Subject</th>
-                  <th className="pb-3 font-medium">Questions</th>
-                  <th className="pb-3 font-medium">Last active</th>
-                  <th className="pb-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {RECENT.map((row) => (
-                  <tr key={row.doc} className="border-b border-line/60">
-                    <td className="py-3.5">
-                      <span className="flex items-center gap-2.5 text-cream">
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line-m bg-carbon text-amber">
-                          <Icon name={row.icon} size={15} />
-                        </span>
-                        {row.doc}
-                      </span>
-                    </td>
-                    <td className="py-3.5 text-dusk">{row.subject}</td>
-                    <td className="py-3.5 font-mono text-dusk">
-                      {row.questions}
-                    </td>
-                    <td className="py-3.5 text-dusk">{row.active}</td>
-                    <td className="py-3.5">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-line-m px-2.5 py-1 text-xs text-cream">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${STATUS[row.status].dot}`}
-                        />
-                        {STATUS[row.status].label}
-                      </span>
-                    </td>
+
+          {recent.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
+              <p className="text-sm text-dusk">
+                Nothing here yet. Upload a document and start your first study
+                session.
+              </p>
+              <Link
+                href="/app?new=1"
+                className="flex items-center gap-2 rounded-xl bg-amber px-5 py-2.5 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
+              >
+                <Icon name="upload" size={16} />
+                Study
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line text-xs text-faint">
+                    <th className="pb-3 font-medium">Document</th>
+                    <th className="pb-3 font-medium">Subject</th>
+                    <th className="pb-3 font-medium">Questions</th>
+                    <th className="pb-3 font-medium">Last active</th>
+                    <th className="pb-3 font-medium">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recent.map((s) => {
+                    const asked = studentTurns(s.turns);
+                    const status = !s.documentText
+                      ? { label: "New", dot: "bg-faint" }
+                      : asked < 10
+                        ? { label: "In progress", dot: "bg-amber" }
+                        : { label: "Well studied", dot: "bg-green" };
+                    return (
+                      <tr key={s.id} className="border-b border-line/60">
+                        <td className="py-3.5">
+                          <Link
+                            href={`/app?session=${s.id}`}
+                            className="flex items-center gap-2.5 text-cream transition-colors hover:text-amber-lt"
+                          >
+                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line-m bg-carbon text-amber">
+                              <Icon
+                                name={
+                                  s.files[0]?.kind === "image" ? "image" : "doc"
+                                }
+                                size={15}
+                              />
+                            </span>
+                            <span className="max-w-56 truncate">{s.title}</span>
+                          </Link>
+                        </td>
+                        <td className="py-3.5 text-dusk">
+                          {s.subject ?? "—"}
+                        </td>
+                        <td className="py-3.5 font-mono text-dusk">{asked}</td>
+                        <td className="py-3.5 text-dusk">
+                          {timeAgo(s.lastActive)}
+                        </td>
+                        <td className="py-3.5">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-line-m px-2.5 py-1 text-xs text-cream">
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${status.dot}`}
+                            />
+                            {status.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <p className="mt-6 text-center text-xs text-faint">
-          Preview with representative data — live stats arrive with usage
-          tracking.
+          Questions, documents, and chats are live. Study time and quiz stats
+          are representative until usage tracking lands.
         </p>
       </div>
-    </div>
+    </AppShell>
   );
 }
 

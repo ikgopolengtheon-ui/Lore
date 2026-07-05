@@ -5,6 +5,8 @@
 // the screen components. Session data itself lives in the localStorage store.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type {
   AppView,
   ExtractResult,
@@ -92,6 +94,45 @@ export function LoreApp() {
     },
     [store],
   );
+
+  // Deep links from the dashboard shell: /app?new=1 starts a fresh
+  // upload-and-study flow; /app?session=<id>[&mode=quiz] opens a chat
+  // (optionally straight into its quiz). Waits for the store to hydrate, and
+  // for the Supabase load when the chat isn't in the local copy yet.
+  const params = useSearchParams();
+  const deepLinkDone = useRef(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- one-time URL→state
+     sync: the deep link is applied exactly once after hydration, then the
+     query is stripped; the state isn't derivable during render. */
+  useEffect(() => {
+    if (deepLinkDone.current || !store.hydrated) return;
+    const clean = () => window.history.replaceState(null, "", "/app");
+    if (params.get("new")) {
+      deepLinkDone.current = true;
+      newChat();
+      clean();
+      return;
+    }
+    const sid = params.get("session");
+    if (!sid) {
+      deepLinkDone.current = true;
+      return;
+    }
+    const s = store.getSession(sid);
+    if (s) {
+      deepLinkDone.current = true;
+      openSession(sid);
+      if (params.get("mode") === "quiz" && s.files.length > 0) {
+        setStage("quiz");
+      }
+      clean();
+    } else if (store.synced) {
+      // fully loaded and still missing — fall back to the chats list
+      deepLinkDone.current = true;
+      clean();
+    }
+  }, [params, store, newChat, openSession]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUploadStart = useCallback(
     async (files: UploadedFile[], raw: Record<string, File>) => {
@@ -233,6 +274,13 @@ export function LoreApp() {
           {stage === "quiz" ? "Quiz" : "Study"} · {active.title}
         </span>
       )}
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-1.5 rounded-lg border border-line-m px-3 py-2 text-xs font-medium text-dusk transition-colors hover:text-cream"
+      >
+        <Icon name="sparkle" size={14} />
+        <span className="hidden sm:inline">Dashboard</span>
+      </Link>
       <AccountButton />
     </>
   );

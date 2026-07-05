@@ -116,7 +116,7 @@ export async function signUpEmail(
 export async function signInWithGoogle(): Promise<void> {
   const supa = getSupabase();
   if (!supa) throw new Error("Accounts aren't available right now.");
-  const redirectTo = `${window.location.origin}/app`;
+  const redirectTo = `${window.location.origin}/dashboard`;
   const {
     data: { user: current },
   } = await supa.auth.getUser();
