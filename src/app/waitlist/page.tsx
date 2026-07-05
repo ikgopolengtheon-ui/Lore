@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
-import { Logo, Wordmark } from "@/components/Logo";
+import { Logo } from "@/components/Logo";
+import { SiteFooter } from "@/components/landing/SiteFooter";
 import { WaitlistForm } from "@/components/landing/WaitlistForm";
 
 export const metadata: Metadata = { title: "Join the waitlist" };
@@ -75,24 +75,7 @@ export default function WaitlistPage() {
         </section>
       </main>
 
-      {/* ── Mini footer ── */}
-      <footer className="border-t border-line px-5 py-5 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-faint sm:flex-row">
-          <Wordmark size={18} />
-          <nav className="flex items-center gap-5">
-            <Link href="/" className="transition-colors hover:text-cream">
-              Home
-            </Link>
-            <Link href="/app" className="transition-colors hover:text-cream">
-              Try the demo
-            </Link>
-            <Link href="/auth" className="transition-colors hover:text-cream">
-              Sign in
-            </Link>
-          </nav>
-          <p>© {new Date().getFullYear()} Lore · Your notes. Finally explained.</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

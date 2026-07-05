@@ -131,7 +131,8 @@ export function LandingMotion({ children }: { children: React.ReactNode }) {
         if (show === navShown) return;
         navShown = show;
         gsap.to("[data-nav]", {
-          yPercent: show ? 0 : -110,
+          // -150% (not -110%) so the pill also clears its top-4 offset
+          yPercent: show ? 0 : -150,
           duration: show ? 0.3 : 0.45,
           ease: "power3.out",
         });

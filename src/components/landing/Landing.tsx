@@ -4,9 +4,10 @@
 // data-* attributes; WaitlistForm is the only other client island.
 
 import Link from "next/link";
-import { Logo, Wordmark } from "@/components/Logo";
+import { Logo } from "@/components/Logo";
 import { Icon, type IconName } from "@/components/Icon";
 import { LandingMotion } from "./LandingMotion";
+import { SiteFooter } from "./SiteFooter";
 import { WaitlistForm } from "./WaitlistForm";
 
 const HERO_LINE_1 = ["The", "teacher", "you"];
@@ -57,36 +58,33 @@ export function Landing() {
     <LandingMotion>
       <NoiseOverlay />
 
-      {/* ── Nav ── */}
-      <header
-        data-nav
-        className="fixed inset-x-0 top-0 z-40 border-b border-line/60 bg-void/70 backdrop-blur-md"
-      >
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5 sm:px-8">
+      {/* ── Nav: floating pill ── */}
+      <header data-nav className="fixed inset-x-0 top-4 z-40 px-4 sm:px-6">
+        <nav className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-line-m bg-carbon/85 py-2 pl-5 pr-2 shadow-lg shadow-black/30 backdrop-blur-md">
           <Logo />
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2">
             <a
               href="#how"
-              className="hidden text-sm text-dusk transition-colors hover:text-cream sm:block"
+              className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream sm:block"
             >
               How it works
             </a>
             <a
               href="#features"
-              className="hidden text-sm text-dusk transition-colors hover:text-cream sm:block"
+              className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream sm:block"
             >
               Features
             </a>
             <Link
               href="/app"
-              className="hidden text-sm text-dusk transition-colors hover:text-cream md:block"
+              className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream md:block"
             >
               Try the demo
             </Link>
             <Link
               href="/waitlist"
               data-magnetic
-              className="rounded-lg bg-amber px-4 py-2 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
+              className="rounded-full bg-amber px-5 py-2.5 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
             >
               Join waitlist
             </Link>
@@ -316,15 +314,7 @@ export function Landing() {
         </section>
       </main>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-line px-5 py-10 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <Wordmark size={22} />
-          <p className="text-xs text-faint">
-            Your notes. Finally explained. · © {new Date().getFullYear()} Lore
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </LandingMotion>
   );
 }
