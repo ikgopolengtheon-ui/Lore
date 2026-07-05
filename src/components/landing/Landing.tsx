@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Icon, type IconName } from "@/components/Icon";
+import { Faq } from "./Faq";
 import { LandingMotion } from "./LandingMotion";
 import { Pricing } from "./Pricing";
 import { SiteFooter } from "./SiteFooter";
@@ -76,12 +77,12 @@ export function Landing() {
             >
               Features
             </a>
-            <a
-              href="#pricing"
+            <Link
+              href="/pricing"
               className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream sm:block"
             >
               Pricing
-            </a>
+            </Link>
             <Link
               href="/dashboard"
               className="hidden rounded-full px-3 py-2 text-sm text-dusk transition-colors hover:text-cream md:block"
@@ -319,6 +320,21 @@ export function Landing() {
                 explaining until it finally clicks.
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* ── FAQ ── */}
+        <section id="faq" className="mx-auto max-w-6xl px-5 py-24 sm:px-8">
+          <SectionHeading
+            eyebrow="FAQ"
+            title={
+              <>
+                Questions, <span className="italic text-amber">answered</span>.
+              </>
+            }
+          />
+          <div className="mt-14">
+            <Faq />
           </div>
         </section>
 

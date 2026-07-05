@@ -70,7 +70,7 @@ export function AppShell({
             Unlimited voice questions, quizzes, and documents.
           </p>
           <Link
-            href="/waitlist"
+            href="/pricing"
             className="mt-3 block w-full rounded-lg bg-amber px-3 py-2 text-center text-xs font-semibold text-void transition-colors hover:bg-amber-lt"
           >
             Upgrade

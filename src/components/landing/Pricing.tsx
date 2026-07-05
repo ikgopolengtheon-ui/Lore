@@ -66,16 +66,31 @@ const TIERS: Tier[] = [
   },
 ];
 
-export function Pricing() {
+export function Pricing({
+  layout = "grid",
+}: {
+  /** "grid" = 3-up with elevated centre (landing); "stack" = single column
+      for narrow contexts like the split /pricing page. */
+  layout?: "grid" | "stack";
+}) {
+  const stacked = layout === "stack";
   return (
     <div>
-      <div className="grid gap-4 lg:grid-cols-3 lg:items-center">
+      <div
+        className={
+          stacked
+            ? "flex flex-col gap-4"
+            : "grid gap-4 lg:grid-cols-3 lg:items-center"
+        }
+      >
         {TIERS.map((tier) =>
           tier.featured ? (
             <div
               key={tier.name}
               data-reveal
-              className="relative rounded-[1.75rem] bg-amber p-7 shadow-2xl shadow-amber/15 lg:-my-6 lg:p-8"
+              className={`relative rounded-[1.75rem] bg-amber p-7 shadow-2xl shadow-amber/15 ${
+                stacked ? "" : "lg:-my-6 lg:p-8"
+              }`}
             >
               <span className="inline-flex items-center gap-1.5 rounded-full bg-void/85 px-3 py-1.5 text-xs font-medium text-cream">
                 <Icon name="check" size={12} />
