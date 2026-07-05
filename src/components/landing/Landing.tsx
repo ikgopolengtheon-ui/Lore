@@ -149,15 +149,37 @@ export function Landing() {
               out loud — drawn only from your own material, never the open web.
             </p>
 
-            <div data-hero-form className="mt-9">
-              <WaitlistForm />
-              <p className="mt-3 text-xs text-faint">
-                Join the waitlist — be first when we open. No spam, ever.
-              </p>
+            <div
+              data-hero-form
+              className="mt-9 flex flex-wrap items-center justify-center gap-3"
+            >
+              <Link
+                href="/waitlist"
+                data-magnetic
+                className="rounded-xl bg-amber px-6 py-3.5 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
+              >
+                Get early access
+              </Link>
+              <a
+                href="#how"
+                className="flex items-center gap-2 rounded-xl border border-line-m bg-carbon/60 px-6 py-3.5 text-sm font-medium text-cream transition-colors hover:border-amber/50"
+              >
+                <Icon name="play" size={15} />
+                See how it works
+              </a>
             </div>
+          </div>
 
-            <div data-hero-wave data-wave className="mt-14">
-              <Waveform bars={40} />
+          {/* framed product mockup over amber artwork */}
+          <div data-hero-mock className="relative z-10 mx-auto mt-16 max-w-5xl">
+            <div
+              className="overflow-hidden rounded-[28px] border border-line-m px-4 pt-8 sm:px-12 sm:pt-12"
+              style={{
+                background:
+                  "radial-gradient(90% 70% at 18% 8%, rgba(232,184,109,0.22) 0%, transparent 60%), radial-gradient(80% 60% at 82% 18%, rgba(212,147,60,0.30) 0%, transparent 55%), radial-gradient(120% 80% at 50% 100%, rgba(160,107,34,0.22) 0%, transparent 60%), linear-gradient(180deg, #241c11 0%, #151310 100%)",
+              }}
+            >
+              <AppMockup />
             </div>
           </div>
         </section>
@@ -188,7 +210,7 @@ export function Landing() {
               <div
                 key={s.title}
                 data-reveal
-                className="group h-full rounded-2xl border border-line bg-depth p-7 transition-colors hover:border-line-m"
+                className="lore-card group h-full p-7"
               >
                 <div className="flex items-center gap-3">
                   <span className="grid h-11 w-11 place-items-center rounded-xl border border-line-m bg-carbon text-amber transition-transform duration-300 group-hover:-translate-y-0.5">
@@ -224,7 +246,7 @@ export function Landing() {
               <div
                 key={f.title}
                 data-reveal
-                className="group flex h-full gap-4 rounded-2xl border border-line bg-depth p-7 transition-colors hover:border-line-m"
+                className="lore-card group flex h-full gap-4 p-7"
               >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line-m bg-carbon text-amber transition-transform duration-300 group-hover:-translate-y-0.5">
                   <Icon name={f.icon} size={22} />
@@ -244,7 +266,7 @@ export function Landing() {
         <section className="px-5 py-24 sm:px-8">
           <div
             data-reveal
-            className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-line-m bg-carbon px-6 py-16 text-center sm:px-12"
+            className="lore-card relative mx-auto max-w-4xl overflow-hidden px-6 py-16 text-center sm:px-12"
           >
             <div
               aria-hidden
@@ -320,6 +342,88 @@ export function Landing() {
 }
 
 // ── shared bits ──────────────────────────────────────────────────
+
+// Static mock of the study screen, framed like a product screenshot: chat
+// transcript on the left, whiteboard on the right, mic front and center.
+function AppMockup() {
+  return (
+    <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-t-2xl border border-b-0 border-line-m bg-void text-left shadow-2xl shadow-black/60">
+      {/* window chrome */}
+      <div className="flex items-center justify-between border-b border-line bg-depth px-4 py-2.5">
+        <div className="flex gap-1.5" aria-hidden>
+          <span className="h-2.5 w-2.5 rounded-full bg-faint" />
+          <span className="h-2.5 w-2.5 rounded-full bg-faint/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-faint/40" />
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-dusk">
+          <Icon name="doc" size={13} />
+          Biology — photosynthesis.pdf
+        </div>
+        <span className="w-12 text-right font-mono text-[10px] text-faint">
+          1.0×
+        </span>
+      </div>
+
+      <div className="grid sm:grid-cols-[1.1fr_1fr]">
+        {/* transcript + mic */}
+        <div className="flex flex-col gap-3 border-b border-line p-5 sm:border-b-0 sm:border-r">
+          <span className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-carbon px-3.5 py-2.5 text-xs leading-relaxed text-cream">
+            Why do plants need both light and dark reactions?
+          </span>
+          <div className="max-w-[92%] self-start rounded-2xl rounded-bl-md border border-line bg-depth px-3.5 py-2.5 text-xs leading-relaxed text-dusk">
+            <span className="font-semibold text-amber">Lore</span> — Think of
+            it as a two-shift factory. The light reactions catch energy while
+            the sun is up, and the Calvin cycle spends it building sugar —
+            here, look at the board…
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-3 pb-1">
+            <MiniWave />
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber text-void shadow-lg shadow-amber/25">
+              <Icon name="mic" size={20} />
+            </span>
+            <MiniWave />
+          </div>
+        </div>
+
+        {/* whiteboard */}
+        <div className="bg-[#12100c] p-5">
+          <p className="font-marker text-base text-amber">Photosynthesis</p>
+          <p className="mt-3 font-hand text-sm leading-relaxed text-cream">
+            6CO₂ + 6H₂O <span className="text-amber">→</span> C₆H₁₂O₆ + 6O₂
+          </p>
+          <p className="mt-2 font-hand text-xs leading-relaxed text-dusk">
+            light reactions → ATP + NADPH
+            <br />
+            Calvin cycle → glucose
+          </p>
+          <p className="mt-3 font-hand text-xs text-blue">
+            needs chlorophyll! ✏
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniWave() {
+  return (
+    <span data-wave className="flex items-center gap-[3px]" aria-hidden>
+      {[0.4, 0.75, 1, 0.6, 0.85, 0.5, 0.9, 0.45].map((h, i) => (
+        <span
+          key={i}
+          className="w-[3px] rounded-full bg-amber"
+          style={{
+            height: `${Math.round(h * 26)}px`,
+            opacity: 0.35 + h * 0.55,
+            animation: "lore-wave 1.5s ease-in-out infinite",
+            animationDelay: `${i * 0.1}s`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function SectionHeading({
   eyebrow,
   title,

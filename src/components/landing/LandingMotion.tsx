@@ -91,8 +91,8 @@ export function LandingMotion({ children }: { children: React.ReactNode }) {
           "-=0.5",
         )
         .from(
-          "[data-hero-wave] span",
-          { scaleY: 0.1, opacity: 0, stagger: 0.015, duration: 0.5 },
+          "[data-hero-mock]",
+          { y: 48, opacity: 0, duration: 0.9 },
           "-=0.45",
         );
 

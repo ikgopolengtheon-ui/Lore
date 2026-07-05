@@ -177,3 +177,22 @@ h3 {
 .animate-fade-up {
   animation: lore-fade-up 0.5s ease-out both;
 }
+
+/* Premium card surface — soft squircle with a warm sheen, shared by the
+   landing sections and the dashboard. */
+.lore-card {
+  border-radius: 1.75rem;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(
+      155deg,
+      rgba(212, 147, 60, 0.09) 0%,
+      rgba(212, 147, 60, 0.02) 42%,
+      transparent 72%
+    ),
+    var(--carbon);
+  transition: border-color 0.3s ease;
+}
+.lore-card:hover {
+  border-color: var(--border-m);
+}

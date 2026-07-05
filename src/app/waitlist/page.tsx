@@ -21,7 +21,7 @@ export default function WaitlistPage() {
     <div className="flex min-h-dvh flex-col bg-void">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-10 px-5 py-6 lg:flex-row lg:items-stretch lg:gap-14 sm:px-8">
         {/* ── Art card ── */}
-        <section className="relative min-h-[420px] overflow-hidden rounded-3xl border border-line lg:min-h-[560px] lg:w-[44%] lg:shrink-0">
+        <section className="relative min-h-[420px] overflow-hidden rounded-[28px] border border-line lg:min-h-[560px] lg:w-[44%] lg:shrink-0">
           {hasArt ? (
             <Image
               src="/waitlist-art.jpg"

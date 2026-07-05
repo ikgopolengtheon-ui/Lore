@@ -145,7 +145,7 @@ function AuthCard() {
           ? "Your anonymous chats come with you — nothing is lost."
           : "Welcome back. Your chats are where you left them."}
       </div>
-      <div className="relative -mt-3 rounded-2xl border border-line-m bg-carbon p-6 shadow-2xl">
+      <div className="lore-card relative -mt-3 p-6 shadow-2xl">
         <button
           type="button"
           onClick={google}
@@ -263,7 +263,7 @@ function SignedInCard() {
   };
 
   return (
-    <div className="rounded-2xl border border-line-m bg-carbon p-6 shadow-2xl">
+    <div className="lore-card p-6 shadow-2xl">
       <p className="text-sm text-dusk">
         Signed in as <span className="text-cream">{user!.email}</span>. Your
         chats sync across devices.
