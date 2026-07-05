@@ -27,12 +27,12 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line bg-depth/40 px-5 pb-8 pt-14 sm:px-8">
-      <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.6fr]">
-        {/* brand */}
+    <footer className="border-t border-line bg-depth/40 px-5 pb-10 pt-16 sm:px-8">
+      <div className="mx-auto grid max-w-6xl gap-x-16 gap-y-14 lg:grid-cols-[1.5fr_1fr]">
+        {/* brand + newsletter */}
         <div>
           <Logo />
-          <p className="mt-4 max-w-xs text-sm leading-relaxed text-dusk">
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-dusk">
             The teacher you never had — a calm voice that explains your own
             notes until they click.
           </p>
@@ -52,45 +52,44 @@ export function SiteFooter() {
               <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.11 20.45H3.56V9h3.55v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0z" />
             </SocialLink>
           </div>
+
+          <h3 className="mt-10 text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+            Stay in the loop
+          </h3>
+          <p className="mt-3 text-sm leading-relaxed text-dusk">
+            One email when Lore opens. Nothing else, ever.
+          </p>
+          <div className="mt-4 max-w-md">
+            <WaitlistForm />
+          </div>
         </div>
 
         {/* link columns */}
-        {COLUMNS.map((col) => (
-          <nav key={col.title} aria-label={col.title}>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
-              {col.title}
-            </h3>
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {col.links.map(([label, href]) => (
-                <li key={label}>
-                  <Link
-                    href={href}
-                    className="text-sm text-dusk transition-colors hover:text-cream"
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-
-        {/* newsletter */}
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
-            Stay in the loop
-          </h3>
-          <p className="mt-4 text-sm leading-relaxed text-dusk">
-            One email when Lore opens. Nothing else, ever.
-          </p>
-          <div className="mt-4">
-            <WaitlistForm />
-          </div>
+        <div className="grid grid-cols-2 gap-8">
+          {COLUMNS.map((col) => (
+            <nav key={col.title} aria-label={col.title}>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+                {col.title}
+              </h3>
+              <ul className="mt-4 flex flex-col gap-3">
+                {col.links.map(([label, href]) => (
+                  <li key={label}>
+                    <Link
+                      href={href}
+                      className="text-sm text-dusk transition-colors hover:text-cream"
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
       </div>
 
       {/* copyright bar */}
-      <div className="mx-auto mt-12 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-line pt-6 text-xs text-faint sm:flex-row">
+      <div className="mx-auto mt-14 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-line pt-6 text-xs text-faint sm:flex-row">
         <p>© {new Date().getFullYear()} Lore. All rights reserved.</p>
         <p>Your notes. Finally explained.</p>
       </div>

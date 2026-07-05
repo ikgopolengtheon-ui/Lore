@@ -59,8 +59,8 @@ export function Landing() {
       <NoiseOverlay />
 
       {/* ── Nav: floating pill ── */}
-      <header data-nav className="fixed inset-x-0 top-4 z-40 px-4 sm:px-6">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-line-m bg-carbon/85 py-2 pl-5 pr-2 shadow-lg shadow-black/30 backdrop-blur-md">
+      <header data-nav className="fixed inset-x-0 top-4 z-40 px-5 sm:top-6 sm:px-10">
+        <nav className="mx-auto flex max-w-4xl items-center justify-between rounded-full border border-line-m bg-carbon/85 py-2 pl-5 pr-2 shadow-lg shadow-black/30 backdrop-blur-md">
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <a
