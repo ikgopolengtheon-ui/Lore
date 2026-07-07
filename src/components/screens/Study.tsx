@@ -192,6 +192,9 @@ export function Study({
               createdAt: Date.now(),
             });
             if (steps.length) setWhiteboard(session.id, steps);
+            // The board follows the conversation: open while answers need
+            // it, tucked away again when the chat steers elsewhere.
+            setWbOpen(steps.length > 0);
             setLive(null);
             if (text) speak(text);
             else setStudyState("idle");
@@ -300,37 +303,19 @@ export function Study({
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* session sub-header */}
+      {/* session sub-header — the whiteboard has no toggle: it opens and
+          closes itself based on whether answers need it */}
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
-        <div className="min-w-0">
-          <h2 className="truncate font-serif text-lg text-cream">
-            {session.title}
-          </h2>
-          <p className="truncate text-xs text-dusk">
-            {session.files[0]?.name ?? "No document"} · grounded answers only
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => setWbOpen((v) => !v)}
-            aria-pressed={wbOpen}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-              wbOpen
-                ? "border-amber/60 bg-amber/10 text-amber"
-                : "border-line-m text-dusk hover:text-cream"
-            }`}
-          >
-            <Icon name="whiteboard" size={16} />
-            <span className="hidden sm:inline">Whiteboard</span>
-          </button>
-          <button
-            onClick={onQuiz}
-            className="flex items-center gap-1.5 rounded-lg border border-line-m px-3 py-2 text-xs font-medium text-dusk transition-colors hover:text-cream"
-          >
-            <Icon name="quiz" size={16} />
-            <span className="hidden sm:inline">Quiz Mode</span>
-          </button>
-        </div>
+        <p className="min-w-0 truncate text-xs text-dusk">
+          {session.files[0]?.name ?? "No document"} · grounded answers only
+        </p>
+        <button
+          onClick={onQuiz}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber px-3.5 py-2 text-xs font-semibold text-void transition-colors hover:bg-amber-lt"
+        >
+          <Icon name="quiz" size={15} />
+          Quiz me on this
+        </button>
       </div>
 
       {/* body: transcript (+ whiteboard when open) */}
