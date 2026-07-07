@@ -378,6 +378,7 @@ export function Study({
               revealed={
                 live ? live.revealed : session.whiteboard.length
               }
+              title={session.title}
               onClose={() => setWbOpen(false)}
             />
           </div>
