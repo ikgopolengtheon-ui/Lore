@@ -7,9 +7,14 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Icon, type IconName } from "@/components/Icon";
-import { AccountButton } from "@/components/AccountButton";
+import { ProfileMenu } from "./ProfileMenu";
 
-export type ShellKey = "dashboard" | "chats" | "quizzes" | "whiteboards";
+export type ShellKey =
+  | "dashboard"
+  | "chats"
+  | "quizzes"
+  | "whiteboards"
+  | "settings";
 
 const NAV: { key: ShellKey; icon: IconName; label: string; href: string }[] = [
   { key: "dashboard", icon: "sparkle", label: "Dashboard", href: "/dashboard" },
@@ -77,7 +82,7 @@ export function AppShell({
           </Link>
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 pt-6">
+        <div className="mt-auto flex flex-col gap-2 pt-6">
           <Link
             href="/#how"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-dusk transition-colors hover:bg-carbon/60 hover:text-cream"
@@ -85,7 +90,7 @@ export function AppShell({
             <Icon name="info" size={17} />
             Help Center
           </Link>
-          <AccountButton />
+          <ProfileMenu />
         </div>
       </aside>
 
@@ -105,7 +110,7 @@ export function AppShell({
                 <Icon name="upload" size={14} />
                 Study
               </Link>
-              <AccountButton />
+              <ProfileMenu compact />
             </div>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-0.5">

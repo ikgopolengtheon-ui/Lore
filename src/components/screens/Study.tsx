@@ -15,6 +15,7 @@ import {
 import { askLore } from "@/lib/chatClient";
 import { GROUNDING_MISS } from "@/lib/grounding";
 import type { SttResult } from "@/lib/sttStream";
+import { getSettings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { MicButton } from "../MicButton";
 import { Whiteboard } from "../Whiteboard";
@@ -51,7 +52,8 @@ export function Study({
   >("idle");
   const [live, setLive] = useState<LiveTurn | null>(null);
   const [wbOpen, setWbOpen] = useState(session.whiteboard.length > 0);
-  const [speed, setSpeed] = useState(1);
+  // default speaking speed comes from Settings (device preference)
+  const [speed, setSpeed] = useState(() => getSettings().speed);
   const [paused, setPaused] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);

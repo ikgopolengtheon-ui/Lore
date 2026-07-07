@@ -23,7 +23,9 @@ export type IconName =
   | "sparkle"
   | "chevron"
   | "check"
-  | "wifi-off";
+  | "wifi-off"
+  | "settings"
+  | "logout";
 
 const paths: Record<IconName, React.ReactNode> = {
   mic: (
@@ -145,6 +147,21 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M8.5 15.5Q10.5 14 12.5 14.7" />
       <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none" />
       <line x1="3" y1="3" x2="21" y2="21" />
+    </>
+  ),
+  settings: (
+    <>
+      <line x1="4" y1="7" x2="20" y2="7" opacity=".45" />
+      <circle cx="9.5" cy="7" r="2.4" />
+      <line x1="4" y1="15.5" x2="20" y2="15.5" opacity=".45" />
+      <circle cx="14.5" cy="15.5" r="2.4" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M10 4H6Q4.5 4 4.5 5.5L4.5 18.5Q4.5 20 6 20H10" />
+      <line x1="9.5" y1="12" x2="20" y2="12" />
+      <polyline points="16.5,8.5 20,12 16.5,15.5" />
     </>
   ),
 };
