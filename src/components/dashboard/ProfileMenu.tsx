@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { useSettings } from "@/lib/settings";
+import { PLANS, useSettings } from "@/lib/settings";
 import { Icon, type IconName } from "@/components/Icon";
 
 const ITEMS: { icon: IconName; label: string; href: string }[] = [
@@ -23,7 +23,7 @@ export function ProfileMenu({ compact }: { compact?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { name: displayName } = useSettings();
+  const { name: displayName, plan } = useSettings();
   const rootRef = useRef<HTMLDivElement>(null);
 
   // dismiss on outside click / Escape
@@ -81,7 +81,9 @@ export function ProfileMenu({ compact }: { compact?: boolean }) {
               <span className="block truncate text-sm font-medium text-cream">
                 {name}
               </span>
-              <span className="block text-xs text-faint">Early access</span>
+              <span className="block text-xs text-faint">
+                {PLANS[plan].label} plan · early access
+              </span>
             </span>
             <span
               className={`shrink-0 text-faint transition-transform ${open ? "rotate-180" : ""}`}

@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { Session } from "@/lib/types";
 import { timeAgo } from "@/lib/format";
 import { useStore } from "@/lib/store";
+import { useSettings, PLANS, formatSubjectLimit } from "@/lib/settings";
 import { Icon } from "../Icon";
 import { Button } from "../Button";
 
@@ -19,21 +20,41 @@ interface Props {
 
 export function Dashboard({ sessions, onNewChat, onOpen, onDelete }: Props) {
   const { user } = useStore();
+  const { plan } = useSettings();
+  const tier = PLANS[plan];
+  const atLimit = sessions.length >= tier.subjects;
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
       <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
-            Your <span className="italic text-amber">chats</span>
+            Your <span className="italic text-amber">subjects</span>
           </h1>
           <p className="mt-2 text-sm text-dusk">
-            Every session keeps its document, transcript, and whiteboard —
+            Every subject keeps its material, transcript, and whiteboard —
             exactly as you left it.
+          </p>
+          <p
+            className={`mt-2 text-xs ${atLimit ? "text-amber" : "text-faint"}`}
+          >
+            {sessions.length} of {formatSubjectLimit(tier.subjects)} saved
+            subjects on {tier.label}
+            {atLimit && (
+              <>
+                {" — "}
+                <Link
+                  href="/pricing"
+                  className="underline underline-offset-2 hover:text-amber-lt"
+                >
+                  upgrade for more
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <Button onClick={onNewChat} className="shrink-0">
           <Icon name="plus" size={18} />
-          New Chat
+          New subject
         </Button>
       </div>
 
@@ -64,7 +85,7 @@ export function Dashboard({ sessions, onNewChat, onOpen, onDelete }: Props) {
             >
               Create an account
             </Link>{" "}
-            to keep chats across devices.
+            to keep your subjects across devices.
           </span>
         </p>
       )}
@@ -104,8 +125,10 @@ function SessionRow({
             )}
           </span>
           <span className="mt-0.5 block truncate text-xs text-dusk">
-            {file ? file.name : "No document yet"} ·{" "}
-            {session.turns.length} turns · {timeAgo(session.lastActive)}
+            {session.files.length > 0
+              ? `${session.files.length} ${session.files.length === 1 ? "document" : "documents"}`
+              : "No material yet"}{" "}
+            · {session.turns.length} turns · {timeAgo(session.lastActive)}
           </span>
         </span>
       </button>
@@ -135,7 +158,7 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
       </div>
       <Button onClick={onNewChat}>
         <Icon name="plus" size={18} />
-        Start your first chat
+        Start your first subject
       </Button>
     </div>
   );

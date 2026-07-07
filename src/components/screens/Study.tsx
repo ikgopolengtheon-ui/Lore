@@ -307,7 +307,8 @@ export function Study({
           closes itself based on whether answers need it */}
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
         <p className="min-w-0 truncate text-xs text-dusk">
-          {session.files[0]?.name ?? "No document"} · grounded answers only
+          <span className="font-medium text-amber">{session.title}</span> ·
+          grounded answers only
         </p>
         <button
           onClick={onQuiz}

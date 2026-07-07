@@ -145,7 +145,7 @@ export function DashboardScreen() {
                       last {range}
                     </>
                   ) : (
-                    "across all your chats"
+                    "across all your subjects"
                   )}
                 </p>
               </div>
@@ -261,20 +261,20 @@ export function DashboardScreen() {
         {/* recent chats table — live from the store */}
         <div className="lore-card mt-4 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-cream">Recent chats</h2>
+            <h2 className="text-sm font-medium text-cream">Recent subjects</h2>
             <Link
               href="/app"
               className="text-xs text-amber transition-colors hover:text-amber-lt"
             >
-              All chats →
+              All subjects →
             </Link>
           </div>
 
           {recent.length === 0 ? (
             <div className="flex flex-col items-center gap-4 py-10 text-center">
               <p className="text-sm text-dusk">
-                Nothing here yet. Upload a document and start your first study
-                session.
+                Nothing here yet. Upload your material and start your first
+                subject.
               </p>
               <Link
                 href="/app?new=1"
@@ -289,8 +289,8 @@ export function DashboardScreen() {
               <table className="w-full min-w-[560px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs text-faint">
-                    <th className="pb-3 font-medium">Document</th>
                     <th className="pb-3 font-medium">Subject</th>
+                    <th className="pb-3 font-medium">Topic</th>
                     <th className="pb-3 font-medium">Questions</th>
                     <th className="pb-3 font-medium">Last active</th>
                     <th className="pb-3 font-medium">Status</th>
@@ -347,8 +347,8 @@ export function DashboardScreen() {
         </div>
 
         <p className="mt-6 text-center text-xs text-faint">
-          Questions, documents, and chats are live. Study time and quiz stats
-          are representative until usage tracking lands.
+          Questions, documents, and subjects are live. Study time and quiz
+          stats are representative until usage tracking lands.
         </p>
       </div>
     </AppShell>

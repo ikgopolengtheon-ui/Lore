@@ -8,7 +8,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { saveSettings, useSettings, type LoreSettings } from "@/lib/settings";
+import {
+  formatSubjectLimit,
+  PLANS,
+  saveSettings,
+  useSettings,
+  type LoreSettings,
+  type PlanKey,
+} from "@/lib/settings";
 import { Icon } from "@/components/Icon";
 import { Button } from "@/components/Button";
 import { AppShell } from "./AppShell";
@@ -228,7 +235,7 @@ export function SettingsScreen() {
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-4">
-                      <span className="text-sm text-dusk">Chats synced</span>
+                      <span className="text-sm text-dusk">Subjects synced</span>
                       <span className="text-sm text-cream">
                         {store.synced ? "Across devices" : "This device"}
                       </span>
@@ -267,15 +274,15 @@ export function SettingsScreen() {
                 <p className="mt-4 text-sm leading-relaxed text-dusk">
                   Your documents are used only to answer your questions —
                   they&rsquo;re never used to train models and never leave
-                  your account. Deleting a chat also deletes its indexed
+                  your account. Deleting a subject also deletes its indexed
                   content.
                 </p>
                 <div className="mt-6 rounded-xl border border-red/30 bg-red/5 p-5">
                   <h3 className="text-sm font-medium text-cream">
-                    Delete all chats
+                    Delete all subjects
                   </h3>
                   <p className="mt-1.5 text-xs leading-relaxed text-dusk">
-                    Permanently removes {chatCount === 1 ? "your 1 chat" : `all ${chatCount} chats`},
+                    Permanently removes {chatCount === 1 ? "your 1 subject" : `all ${chatCount} subjects`},
                     including documents, transcripts, whiteboards, and indexed
                     content. This can&rsquo;t be undone.
                   </p>
@@ -291,7 +298,7 @@ export function SettingsScreen() {
                     >
                       {confirmWipe
                         ? "Yes, delete everything"
-                        : "Delete all chats"}
+                        : "Delete all subjects"}
                     </button>
                     {confirmWipe && (
                       <button
@@ -312,12 +319,49 @@ export function SettingsScreen() {
                 <div className="mt-5 flex items-center justify-between gap-4">
                   <span className="text-sm text-dusk">Current plan</span>
                   <span className="rounded-full border border-amber/40 bg-amber/10 px-3 py-1 text-xs font-medium text-amber">
-                    Early access
+                    {PLANS[prefs.plan].label} · early access
                   </span>
                 </div>
+                <div className="mt-3 flex items-center justify-between gap-4">
+                  <span className="text-sm text-dusk">Saved subjects</span>
+                  <span className="text-sm text-cream">
+                    {chatCount} of {formatSubjectLimit(PLANS[prefs.plan].subjects)}
+                  </span>
+                </div>
+
+                <h3 className="mt-7 text-sm text-dusk">Preview a tier</h3>
+                <div className="mt-3 flex flex-col gap-2">
+                  {(Object.keys(PLANS) as PlanKey[]).map((key) => (
+                    <label
+                      key={key}
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
+                        prefs.plan === key
+                          ? "border-amber/60 bg-amber/5"
+                          : "border-line-m"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="plan"
+                        checked={prefs.plan === key}
+                        onChange={() => update({ plan: key })}
+                        className="mt-1 accent-amber"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-cream">
+                          {PLANS[key].label}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-dusk">
+                          {formatSubjectLimit(PLANS[key].subjects)} saved
+                          subjects
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
                 <p className="mt-4 text-sm leading-relaxed text-dusk">
-                  Paid plans (Focus, Scholar, Mastery) launch with the public
-                  release — early-access studying is on the house until then.
+                  Paid plans launch with the public release — until then you
+                  can preview any tier, and studying is on the house.
                 </p>
                 <Link
                   href="/pricing"

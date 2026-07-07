@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseConfigured } from "@/lib/supabase";
+import { getSettings, PLANS, formatSubjectLimit } from "@/lib/settings";
 import type {
   AppView,
   ExtractResult,
@@ -88,12 +89,23 @@ export function LoreApp() {
   }, []);
 
   const newChat = useCallback(() => {
+    // Tier gate: subjects are the metered unit (Focus 3 / Scholar 10 /
+    // Mastery unlimited).
+    const plan = PLANS[getSettings().plan];
+    if (store.sessions.length >= plan.subjects) {
+      pushToast(
+        `${plan.label} keeps ${formatSubjectLimit(plan.subjects)} saved subjects. Delete one or upgrade to add more.`,
+        "error",
+      );
+      setView("dashboard");
+      return;
+    }
     const s = store.createSession();
     setActiveId(s.id);
     setStage("upload");
     setErrorKey(null);
     setView("session");
-  }, [store]);
+  }, [store, pushToast]);
 
   const openSession = useCallback(
     (id: string) => {
@@ -147,14 +159,16 @@ export function LoreApp() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUploadStart = useCallback(
-    async (files: UploadedFile[], raw: Record<string, File>) => {
+    async (
+      files: UploadedFile[],
+      raw: Record<string, File>,
+      subjectName: string,
+    ) => {
       if (!activeId) return;
       const id = activeId;
       const first = files[0];
       const isImage = first.kind === "image";
-      const title = isImage
-        ? `Photo notes (${files.length})`
-        : first.name.replace(/\.[^.]+$/, "");
+      const title = subjectName.trim() || first.name.replace(/\.[^.]+$/, "");
 
       // show Processing immediately with the file metadata
       store.updateSession(id, {

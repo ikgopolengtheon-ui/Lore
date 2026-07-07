@@ -23,7 +23,7 @@ export function WhiteboardsScreen() {
           Your <span className="italic text-amber">whiteboards</span>
         </h1>
         <p className="mt-2 text-sm text-dusk">
-          Every board Lore has written on, saved with its chat — equations,
+          Every board Lore has written on, saved with its subject — equations,
           derivations, and the tricky bits.
         </p>
 

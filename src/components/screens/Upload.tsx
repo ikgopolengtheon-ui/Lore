@@ -22,11 +22,16 @@ import { Button } from "../Button";
 interface Props {
   // raw File objects are passed alongside metadata so processing can extract
   // text server-side (they can't be stored in the session/localStorage).
-  onStart: (files: UploadedFile[], raw: Record<string, File>) => void;
+  onStart: (
+    files: UploadedFile[],
+    raw: Record<string, File>,
+    subjectName: string,
+  ) => void;
 }
 
 export function Upload({ onStart }: Props) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [subjectName, setSubjectName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -139,10 +144,12 @@ export function Upload({ onStart }: Props) {
     setFiles((prev) => prev.filter((x) => x.id !== id));
   };
 
-  const kindLabel =
-    files[0]?.kind === "image"
-      ? `${files.length} photo${files.length > 1 ? "s" : ""}`
-      : files[0]?.name;
+  // fallback subject name when the student doesn't type one
+  const suggestedName = files[0]
+    ? files[0].kind === "image"
+      ? "Photo notes"
+      : files[0].name.replace(/\.[^.]+$/, "")
+    : "";
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
@@ -239,18 +246,43 @@ export function Upload({ onStart }: Props) {
             </div>
           ))}
 
+          {/* name the subject before studying begins */}
+          <label className="mt-4 block">
+            <span className="text-sm font-medium text-cream">
+              Name this subject
+            </span>
+            <input
+              type="text"
+              value={subjectName}
+              maxLength={60}
+              onChange={(e) => setSubjectName(e.target.value)}
+              placeholder={suggestedName || "e.g. Biology — photosynthesis"}
+              className="mt-2 w-full rounded-lg border border-line-m bg-carbon px-3.5 py-3 text-sm text-cream outline-none placeholder:text-faint focus:border-amber/60"
+            />
+            <span className="mt-1.5 block text-xs text-faint">
+              This is how it appears everywhere — your dashboard, quizzes, and
+              whiteboards.
+            </span>
+          </label>
+
           <Button
-            onClick={() => onStart(files, rawRef.current)}
+            onClick={() =>
+              onStart(
+                files,
+                rawRef.current,
+                subjectName.trim() || suggestedName,
+              )
+            }
             className="mt-2 w-full sm:w-auto sm:self-start"
           >
-            Start Studying{kindLabel ? ` · ${kindLabel}` : ""}
+            Start studying
           </Button>
         </div>
       )}
 
       <p className="mt-8 flex items-start gap-2 text-xs leading-relaxed text-faint">
         <Icon name="info" size={14} className="mt-0.5 shrink-0" />
-        Your document is stored privately in your chat and is never used to
+        Your document is stored privately in your subject and is never used to
         train AI models.
       </p>
     </main>

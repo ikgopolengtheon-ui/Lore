@@ -8,6 +8,22 @@
 
 import { useSyncExternalStore } from "react";
 
+export type PlanKey = "focus" | "scholar" | "mastery";
+
+/** Tier definitions — subjects are the metered unit (see /pricing). */
+export const PLANS: Record<
+  PlanKey,
+  { label: string; subjects: number }
+> = {
+  focus: { label: "Focus", subjects: 3 },
+  scholar: { label: "Scholar", subjects: 10 },
+  mastery: { label: "Mastery", subjects: Number.POSITIVE_INFINITY },
+};
+
+export function formatSubjectLimit(n: number): string {
+  return Number.isFinite(n) ? String(n) : "Unlimited";
+}
+
 export interface LoreSettings {
   /** what Lore should call the student */
   name: string;
@@ -15,11 +31,18 @@ export interface LoreSettings {
   speed: number;
   /** preferred voice quality (metering by plan happens server-side later) */
   voice: "premium" | "standard";
+  /** current tier — a preview until billing lands; gates saved subjects */
+  plan: PlanKey;
 }
 
 const KEY = "lore-settings";
 
-const DEFAULTS: LoreSettings = { name: "", speed: 1, voice: "premium" };
+const DEFAULTS: LoreSettings = {
+  name: "",
+  speed: 1,
+  voice: "premium",
+  plan: "focus",
+};
 
 let cache: LoreSettings | null = null;
 const listeners = new Set<() => void>();

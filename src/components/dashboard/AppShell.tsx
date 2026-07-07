@@ -18,7 +18,7 @@ export type ShellKey =
 
 const NAV: { key: ShellKey; icon: IconName; label: string; href: string }[] = [
   { key: "dashboard", icon: "sparkle", label: "Dashboard", href: "/dashboard" },
-  { key: "chats", icon: "doc", label: "My chats", href: "/app" },
+  { key: "chats", icon: "doc", label: "Subjects", href: "/app" },
   { key: "quizzes", icon: "quiz", label: "Quizzes", href: "/quizzes" },
   {
     key: "whiteboards",
@@ -72,7 +72,7 @@ export function AppShell({
         <div className="lore-card mt-8 p-4">
           <p className="font-serif text-base text-cream">Upgrade to Pro</p>
           <p className="mt-1.5 text-xs leading-relaxed text-dusk">
-            Unlimited voice questions, quizzes, and documents.
+            More study hours, premium voice, and up to unlimited subjects.
           </p>
           <Link
             href="/pricing"

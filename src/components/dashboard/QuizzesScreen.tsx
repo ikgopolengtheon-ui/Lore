@@ -22,7 +22,7 @@ export function QuizzesScreen() {
           Quiz <span className="italic text-amber">yourself</span>
         </h1>
         <p className="mt-2 text-sm text-dusk">
-          Pick a chat — Lore asks questions from that material, you answer
+          Pick a subject — Lore asks questions from its material, you answer
           aloud, and it tells you where you stand.
         </p>
 
