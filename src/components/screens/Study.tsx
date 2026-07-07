@@ -24,6 +24,9 @@ import { Icon } from "../Icon";
 interface Props {
   session: Session;
   offline: boolean;
+  /** true when the session was entered via the Whiteboards hub — the board
+      starts open and stays open instead of following the answers */
+  boardIntent?: boolean;
   onQuiz: () => void;
   onMicDenied: () => void;
   onLlmError: (retry: () => void) => void;
@@ -41,6 +44,7 @@ interface LiveTurn {
 export function Study({
   session,
   offline,
+  boardIntent = false,
   onQuiz,
   onMicDenied,
   onLlmError,
@@ -51,7 +55,9 @@ export function Study({
     "idle" | "thinking" | "responding" | "speaking"
   >("idle");
   const [live, setLive] = useState<LiveTurn | null>(null);
-  const [wbOpen, setWbOpen] = useState(session.whiteboard.length > 0);
+  const [wbOpen, setWbOpen] = useState(
+    boardIntent || session.whiteboard.length > 0,
+  );
   // default speaking speed comes from Settings (device preference)
   const [speed, setSpeed] = useState(() => getSettings().speed);
   const [paused, setPaused] = useState(false);
@@ -193,8 +199,9 @@ export function Study({
             });
             if (steps.length) setWhiteboard(session.id, steps);
             // The board follows the conversation: open while answers need
-            // it, tucked away again when the chat steers elsewhere.
-            setWbOpen(steps.length > 0);
+            // it, tucked away again when the chat steers elsewhere — unless
+            // the student came here for the board (Whiteboards hub).
+            setWbOpen(boardIntent || steps.length > 0);
             setLive(null);
             if (text) speak(text);
             else setStudyState("idle");
@@ -213,6 +220,7 @@ export function Study({
       session.id,
       session.turns,
       session.documentText,
+      boardIntent,
       onLlmError,
       speak,
     ],

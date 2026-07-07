@@ -40,6 +40,9 @@ export function LoreApp() {
   const [view, setView] = useState<AppView>("dashboard");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [stage, setStage] = useState<SessionStage>("upload");
+  // set by ?mode=whiteboard deep links (Whiteboards hub): the session opens
+  // with the board out and keeps it out, instead of the answer-driven default
+  const [boardIntent, setBoardIntent] = useState(false);
   const [errorKey, setErrorKey] = useState<ErrorKey | null>(null);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [offline, setOffline] = useState(false);
@@ -86,6 +89,7 @@ export function LoreApp() {
     setView("dashboard");
     setActiveId(null);
     setErrorKey(null);
+    setBoardIntent(false);
   }, []);
 
   const newChat = useCallback(() => {
@@ -104,6 +108,7 @@ export function LoreApp() {
     setActiveId(s.id);
     setStage("upload");
     setErrorKey(null);
+    setBoardIntent(false);
     setView("session");
   }, [store, pushToast]);
 
@@ -112,6 +117,7 @@ export function LoreApp() {
       const s = store.getSession(id);
       setActiveId(id);
       setErrorKey(null);
+      setBoardIntent(false);
       setStage(s && s.files.length > 0 ? "study" : "upload");
       setView("session");
     },
@@ -131,9 +137,11 @@ export function LoreApp() {
     if (deepLinkDone.current || !store.hydrated) return;
     if (requireAuth && !signedIn) return; // gate redirects; don't create chats
     const clean = () => window.history.replaceState(null, "", "/app");
+    const mode = params.get("mode");
     if (params.get("new")) {
       deepLinkDone.current = true;
       newChat();
+      if (mode === "whiteboard") setBoardIntent(true);
       clean();
       return;
     }
@@ -146,9 +154,10 @@ export function LoreApp() {
     if (s) {
       deepLinkDone.current = true;
       openSession(sid);
-      if (params.get("mode") === "quiz" && s.files.length > 0) {
+      if (mode === "quiz" && s.files.length > 0) {
         setStage("quiz");
       }
+      if (mode === "whiteboard") setBoardIntent(true);
       clean();
     } else if (store.synced) {
       // fully loaded and still missing — fall back to the chats list
@@ -378,6 +387,7 @@ export function LoreApp() {
         <Study
           session={active}
           offline={offline}
+          boardIntent={boardIntent}
           onQuiz={() => setStage("quiz")}
           onMicDenied={() => triggerError("mic-denied")}
           onLlmError={onLlmError}

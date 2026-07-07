@@ -19,13 +19,26 @@ export function WhiteboardsScreen() {
   return (
     <AppShell active="whiteboards">
       <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8 sm:py-12">
-        <h1 className="font-serif text-3xl leading-tight tracking-tight text-cream sm:text-4xl">
-          Your <span className="italic text-amber">whiteboards</span>
-        </h1>
-        <p className="mt-2 text-sm text-dusk">
-          Every board Lore has written on, saved with its subject — equations,
-          derivations, and the tricky bits.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-3xl leading-tight tracking-tight text-cream sm:text-4xl">
+              Your <span className="italic text-amber">whiteboards</span>
+            </h1>
+            <p className="mt-2 text-sm text-dusk">
+              Every board Lore has written on, saved with its subject —
+              equations, derivations, and the tricky bits.
+            </p>
+          </div>
+          {boards.length > 0 && (
+            <Link
+              href="/app?new=1&mode=whiteboard"
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-amber px-4 py-2.5 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
+            >
+              <Icon name="plus" size={16} />
+              New board
+            </Link>
+          )}
+        </div>
 
         {boards.length === 0 ? (
           <div className="lore-card mt-10 flex flex-col items-center gap-4 p-10 text-center">
@@ -37,11 +50,11 @@ export function WhiteboardsScreen() {
               chemistry, Lore writes the steps out — they&rsquo;re saved here.
             </p>
             <Link
-              href="/app?new=1"
+              href="/app?new=1&mode=whiteboard"
               className="flex items-center gap-2 rounded-xl bg-amber px-5 py-2.5 text-sm font-semibold text-void transition-colors hover:bg-amber-lt"
             >
-              <Icon name="upload" size={16} />
-              Study
+              <Icon name="plus" size={16} />
+              Start a board
             </Link>
           </div>
         ) : (
@@ -49,7 +62,7 @@ export function WhiteboardsScreen() {
             {boards.map((s) => (
               <li key={s.id}>
                 <Link
-                  href={`/app?session=${s.id}`}
+                  href={`/app?session=${s.id}&mode=whiteboard`}
                   className="lore-card group block h-full p-5"
                 >
                   <div className="rounded-xl bg-[#12100c] p-4">
