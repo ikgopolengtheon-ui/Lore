@@ -9,6 +9,21 @@ export const alt = "Lore — Your notes. Finally explained.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+// satori can only consume TTF/OTF; verify the magic bytes so a flaky or
+// wrong-format response degrades to the default font instead of failing
+// the whole build.
+function looksLikeFont(buf: ArrayBuffer): boolean {
+  if (buf.byteLength < 4) return false;
+  const b = new Uint8Array(buf.slice(0, 4));
+  const tag = String.fromCharCode(b[0], b[1], b[2], b[3]);
+  return (
+    tag === "OTTO" ||
+    tag === "true" ||
+    tag === "ttcf" ||
+    (b[0] === 0 && b[1] === 1 && b[2] === 0 && b[3] === 0)
+  );
+}
+
 async function loadFraunces(): Promise<ArrayBuffer | null> {
   try {
     const css = await fetch(
@@ -18,7 +33,8 @@ async function loadFraunces(): Promise<ArrayBuffer | null> {
     ).then((r) => r.text());
     const url = css.match(/src: url\((.+?)\)/)?.[1];
     if (!url) return null;
-    return await fetch(url).then((r) => r.arrayBuffer());
+    const buf = await fetch(url).then((r) => r.arrayBuffer());
+    return looksLikeFont(buf) ? buf : null;
   } catch {
     return null;
   }

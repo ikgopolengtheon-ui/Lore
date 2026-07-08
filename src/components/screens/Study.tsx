@@ -309,30 +309,82 @@ export function Study({
 
   const hasSteps = live?.steps.length || session.whiteboard.length > 0;
 
+  const lastLore = [...session.turns].reverse().find((t) => t.role === "lore");
+  const boardAnswer = live
+    ? live.text || "…"
+    : studyState === "speaking"
+      ? lastLore?.text
+      : undefined;
+
+  const micNode = (
+    <div
+      title={
+        offline ? "Reconnect to the internet to use voice features" : undefined
+      }
+    >
+      <MicButton
+        disabled={offline || studyState !== "idle"}
+        onQuestion={handleQuestion}
+        onTooShort={() =>
+          pushToast("Hold the mic a little longer to ask your question.")
+        }
+        onPermissionDenied={onMicDenied}
+      />
+    </div>
+  );
+
+  // Board mode takes over the study screen (mode switch lives in its top
+  // bar); voice mode is the classic transcript + mic.
+  if (wbOpen) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col p-3">
+        <Whiteboard
+          steps={live?.steps ?? session.whiteboard}
+          revealed={live ? live.revealed : session.whiteboard.length}
+          title={session.title}
+          answerText={boardAnswer}
+          speaking={studyState === "speaking"}
+          writing={studyState === "responding" || studyState === "thinking"}
+          paused={paused}
+          onTogglePause={togglePause}
+          speed={speed}
+          onSpeedChange={setSpeed}
+          mic={micNode}
+          onQuiz={onQuiz}
+          onClose={() => setWbOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col">
-      {/* session sub-header — the whiteboard has no toggle: it opens and
-          closes itself based on whether answers need it */}
+      {/* session sub-header: subject + mode actions */}
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
         <p className="min-w-0 truncate text-xs text-dusk">
           <span className="font-medium text-amber">{session.title}</span> ·
           grounded answers only
         </p>
-        <button
-          onClick={onQuiz}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber px-3.5 py-2 text-xs font-semibold text-void transition-colors hover:bg-amber-lt"
-        >
-          <Icon name="quiz" size={15} />
-          Quiz me on this
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setWbOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-line-m px-3 py-2 text-xs font-medium text-dusk transition-colors hover:border-amber/50 hover:text-cream"
+          >
+            <Icon name="whiteboard" size={15} />
+            Board
+          </button>
+          <button
+            onClick={onQuiz}
+            className="flex items-center gap-1.5 rounded-lg bg-amber px-3.5 py-2 text-xs font-semibold text-void transition-colors hover:bg-amber-lt"
+          >
+            <Icon name="quiz" size={15} />
+            Quiz me on this
+          </button>
+        </div>
       </div>
 
-      {/* body: transcript (+ whiteboard when open) */}
-      <div
-        className={`grid flex-1 gap-0 overflow-hidden ${
-          wbOpen ? "lg:grid-cols-2" : "grid-cols-1"
-        }`}
-      >
+      {/* body: transcript */}
+      <div className="grid flex-1 grid-cols-1 gap-0 overflow-hidden">
         <div
           ref={scrollRef}
           className="flex-1 overflow-y-auto px-4 py-6 sm:px-6"
@@ -378,19 +430,6 @@ export function Study({
             </ul>
           </div>
         </div>
-
-        {wbOpen && (
-          <div className="border-t border-line p-3 lg:border-l lg:border-t-0">
-            <Whiteboard
-              steps={live?.steps ?? session.whiteboard}
-              revealed={
-                live ? live.revealed : session.whiteboard.length
-              }
-              title={session.title}
-              onClose={() => setWbOpen(false)}
-            />
-          </div>
-        )}
       </div>
 
       {/* footer: TTS controls + mic (sticky) */}
@@ -427,20 +466,7 @@ export function Study({
             </div>
           )}
 
-          <div
-            title={
-              offline ? "Reconnect to the internet to use voice features" : undefined
-            }
-          >
-            <MicButton
-              disabled={offline || studyState !== "idle"}
-              onQuestion={handleQuestion}
-              onTooShort={() =>
-                pushToast("Hold the mic a little longer to ask your question.")
-              }
-              onPermissionDenied={onMicDenied}
-            />
-          </div>
+          {micNode}
 
           {/* typed fallback — voice first, keyboard second */}
           <form
