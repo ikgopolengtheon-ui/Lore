@@ -1,11 +1,13 @@
 "use client";
 
-// Quiz hub: every chat with study material, ready to quiz on. Clicking one
-// opens the session at /app directly in quiz mode.
+// Quiz hub: every subject with study material, as stat cards with the shared
+// progress meter. Clicking one opens the session at /app directly in quiz
+// mode.
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { timeAgo } from "@/lib/format";
+import { studyProgress } from "@/lib/progress";
 import { Icon } from "@/components/Icon";
 import { AppShell } from "./AppShell";
 
@@ -17,7 +19,7 @@ export function QuizzesScreen() {
 
   return (
     <AppShell active="quizzes">
-      <main className="mx-auto w-full max-w-3xl px-5 py-8 sm:px-8 sm:py-12">
+      <main className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8 sm:py-12">
         <h1 className="font-serif text-3xl leading-tight tracking-tight text-cream sm:text-4xl">
           Quiz <span className="italic text-amber">yourself</span>
         </h1>
@@ -44,38 +46,68 @@ export function QuizzesScreen() {
             </Link>
           </div>
         ) : (
-          <ul className="mt-8 flex flex-col gap-2.5">
-            {ready.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/app?session=${s.id}&mode=quiz`}
-                  className="lore-card group flex items-center gap-4 p-5"
-                >
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line-m bg-carbon text-amber">
-                    <Icon
-                      name={s.files[0]?.kind === "image" ? "image" : "quiz"}
-                      size={20}
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-cream">
-                      {s.title}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-dusk">
-                      {s.subject ? `${s.subject} · ` : ""}
-                      {s.wordCount.toLocaleString()} words ·{" "}
-                      {timeAgo(s.lastActive)}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-amber transition-colors group-hover:text-amber-lt">
-                    Take quiz
-                    <span className="-rotate-90 inline-block">
-                      <Icon name="chevron" size={13} />
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+            {ready.map((s) => {
+              const questions = s.turns.filter(
+                (t) => t.role === "student",
+              ).length;
+              const progress = studyProgress(s);
+              return (
+                <li key={s.id}>
+                  <Link
+                    href={`/app?session=${s.id}&mode=quiz`}
+                    className="lore-card group flex h-full flex-col p-5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line-m bg-carbon text-amber">
+                        <Icon
+                          name={s.files[0]?.kind === "image" ? "image" : "quiz"}
+                          size={20}
+                        />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-cream">
+                          {s.title}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-dusk">
+                          {s.subject ? `${s.subject} · ` : ""}
+                          {s.wordCount >= 1000
+                            ? `${(s.wordCount / 1000).toFixed(1)}k`
+                            : s.wordCount}{" "}
+                          words · {questions} questions
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="mt-auto pt-5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-dusk">Study progress</span>
+                        <span className="tabular-nums text-cream">
+                          {progress}%
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-depth">
+                        <div
+                          className="h-full rounded-full bg-amber"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-[11px] text-faint">
+                          {timeAgo(s.lastActive)}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs font-medium text-amber transition-colors group-hover:text-amber-lt">
+                          Take quiz
+                          <span className="-rotate-90 inline-block">
+                            <Icon name="chevron" size={13} />
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </main>

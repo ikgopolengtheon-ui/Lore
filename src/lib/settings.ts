@@ -10,14 +10,19 @@ import { useSyncExternalStore } from "react";
 
 export type PlanKey = "focus" | "scholar" | "mastery";
 
-/** Tier definitions — subjects are the metered unit (see /pricing). */
+/** Tier definitions — subjects and saved whiteboards are the metered units
+    (see /pricing). */
 export const PLANS: Record<
   PlanKey,
-  { label: string; subjects: number }
+  { label: string; subjects: number; boards: number }
 > = {
-  focus: { label: "Focus", subjects: 3 },
-  scholar: { label: "Scholar", subjects: 10 },
-  mastery: { label: "Mastery", subjects: Number.POSITIVE_INFINITY },
+  focus: { label: "Focus", subjects: 3, boards: 5 },
+  scholar: { label: "Scholar", subjects: 10, boards: 15 },
+  mastery: {
+    label: "Mastery",
+    subjects: Number.POSITIVE_INFINITY,
+    boards: Number.POSITIVE_INFINITY,
+  },
 };
 
 export function formatSubjectLimit(n: number): string {

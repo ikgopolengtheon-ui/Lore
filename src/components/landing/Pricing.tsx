@@ -28,7 +28,7 @@ const TIERS: Tier[] = [
     included: [
       "4 hours of study time / month",
       "Standard voice",
-      "3 saved subjects",
+      "3 saved subjects · 5 whiteboards",
       "Voice Q&A, whiteboard & quizzes",
       "Adjustable playback speed",
     ],
@@ -44,7 +44,7 @@ const TIERS: Tier[] = [
     included: [
       "8 hours of study time / month",
       "Premium voice for 5 hrs, then standard",
-      "10 saved subjects",
+      "10 saved subjects · 15 whiteboards",
       "Priority processing",
       "Everything in Focus",
     ],
@@ -59,7 +59,7 @@ const TIERS: Tier[] = [
     included: [
       "16 hours of study time / month",
       "Premium voice for 8 hrs, then standard",
-      "Unlimited saved subjects",
+      "Unlimited subjects & whiteboards",
       "Priority processing",
       "First access to new features",
     ],

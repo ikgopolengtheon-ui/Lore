@@ -49,6 +49,9 @@ export function SettingsScreen() {
 
   const email = store.user?.email ?? null;
   const chatCount = store.sessions.length;
+  const boardCount = store.sessions.filter(
+    (s) => s.whiteboard.length > 0,
+  ).length;
 
   const logOut = async () => {
     setBusy(true);
@@ -328,6 +331,12 @@ export function SettingsScreen() {
                     {chatCount} of {formatSubjectLimit(PLANS[prefs.plan].subjects)}
                   </span>
                 </div>
+                <div className="mt-3 flex items-center justify-between gap-4">
+                  <span className="text-sm text-dusk">Saved whiteboards</span>
+                  <span className="text-sm text-cream">
+                    {boardCount} of {formatSubjectLimit(PLANS[prefs.plan].boards)}
+                  </span>
+                </div>
 
                 <h3 className="mt-7 text-sm text-dusk">Preview a tier</h3>
                 <div className="mt-3 flex flex-col gap-2">
@@ -353,7 +362,8 @@ export function SettingsScreen() {
                         </span>
                         <span className="mt-0.5 block text-xs text-dusk">
                           {formatSubjectLimit(PLANS[key].subjects)} saved
-                          subjects
+                          subjects · {formatSubjectLimit(PLANS[key].boards)}{" "}
+                          whiteboards
                         </span>
                       </span>
                     </label>
