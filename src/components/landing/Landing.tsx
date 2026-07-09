@@ -60,6 +60,13 @@ export function Landing() {
     <LandingMotion>
       <NoiseOverlay />
 
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-lg bg-amber px-4 py-2 text-sm font-semibold text-void focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to content
+      </a>
+
       {/* ── Nav: floating pill ── */}
       <header data-nav className="fixed inset-x-0 top-4 z-40 px-5 sm:top-6 sm:px-10">
         <nav className="mx-auto flex max-w-4xl items-center justify-between rounded-full border border-line-m bg-carbon/85 py-2 pl-5 pr-2 shadow-lg shadow-black/30 backdrop-blur-md">
@@ -100,11 +107,10 @@ export function Landing() {
         </nav>
       </header>
 
-      <main>
+      <main id="main">
         {/* ── Hero ── */}
         <section className="relative px-5 pb-20 pt-32 sm:px-8 sm:pt-40">
           <div
-            data-parallax
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto h-[560px] max-w-4xl"
             style={{
@@ -192,13 +198,88 @@ export function Landing() {
           </div>
         </section>
 
-        {/* ── Pull quote ── */}
-        <section className="border-y border-line bg-depth/40 px-5 py-16 sm:px-8">
-          <div data-reveal className="mx-auto max-w-3xl text-center">
-            <p className="font-serif text-2xl italic leading-snug text-cream sm:text-3xl">
-              “You have nobody to ask at midnight.
-              <span className="text-amber"> Lore does.</span>”
-            </p>
+        {/* ── Receipts: concrete, checkable claims (no fake logos) ── */}
+        <section
+          aria-label="What Lore guarantees"
+          className="border-y border-line bg-depth/40"
+        >
+          <div className="mx-auto grid max-w-6xl divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {(
+              [
+                {
+                  icon: "doc",
+                  claim: "Grounded in your uploads",
+                  detail:
+                    "If it isn't in your notes, Lore says so — it never answers from the open web.",
+                },
+                {
+                  icon: "upload",
+                  claim: "Reads what you actually have",
+                  detail:
+                    "PDF, PowerPoint, Word, plain text — even photos of handwritten notes.",
+                },
+                {
+                  icon: "whiteboard",
+                  claim: "Shows the working",
+                  detail:
+                    "Equations written out step by step on a board while it talks.",
+                },
+              ] as { icon: IconName; claim: string; detail: string }[]
+            ).map((r) => (
+              <div key={r.claim} className="flex gap-3.5 px-6 py-6">
+                <span className="mt-0.5 shrink-0 text-amber">
+                  <Icon name={r.icon} size={18} />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-cream">{r.claim}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-dusk">
+                    {r.detail}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Problem → solution ── */}
+        <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8">
+          <div className="grid items-start gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
+            <div>
+              <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
+                The 1am problem
+              </p>
+              <h2 className="font-serif text-3xl leading-tight tracking-tight text-cream sm:text-4xl">
+                “You have nobody to ask
+                <br />
+                at midnight.”
+              </h2>
+              <p className="mt-5 max-w-md text-base leading-relaxed text-dusk">
+                The lecture made sense until slide 30. The textbook just
+                restates the slide. The group chat is asleep, office hours are
+                on Thursday, and the exam isn&rsquo;t moving. Reading the same
+                paragraph a fourth time isn&rsquo;t studying — it&rsquo;s
+                waiting.
+              </p>
+            </div>
+            <div className="lore-card p-7 lg:mt-10">
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
+                Lore does
+              </p>
+              <p className="mt-4 text-base leading-relaxed text-cream">
+                Hold the mic and ask the actual question —{" "}
+                <span className="italic text-amber">
+                  “why does the second step work?”
+                </span>{" "}
+                — and a calm voice explains it from your own slides until it
+                clicks. Out loud, at 1am, as many times as you need.
+              </p>
+              <Link
+                href="/dashboard"
+                className="mt-5 inline-block text-sm text-amber underline underline-offset-2 transition-colors hover:text-amber-lt"
+              >
+                Try it on your notes →
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -215,11 +296,7 @@ export function Landing() {
           />
           <div className="mt-14 grid gap-4 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <div
-                key={s.title}
-                data-reveal
-                className="lore-card group h-full p-7"
-              >
+              <div key={s.title} className="lore-card group h-full p-7">
                 <div className="flex items-center gap-3">
                   <span className="grid h-11 w-11 place-items-center rounded-xl border border-line-m bg-carbon text-amber transition-transform duration-300 group-hover:-translate-y-0.5">
                     <Icon name={s.icon} size={22} />
@@ -253,7 +330,6 @@ export function Landing() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                data-reveal
                 className="lore-card group flex h-full gap-4 p-7"
               >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line-m bg-carbon text-amber transition-transform duration-300 group-hover:-translate-y-0.5">
@@ -280,10 +356,7 @@ export function Landing() {
               </>
             }
           />
-          <p
-            data-reveal
-            className="mx-auto mt-4 max-w-xl text-center text-sm leading-relaxed text-dusk"
-          >
+          <p className="mx-auto mt-4 max-w-xl text-center text-sm leading-relaxed text-dusk">
             Choose how much study time you need now, and upgrade when exams
             heat up. Every plan is the full Lore — nothing core is held back.
           </p>
@@ -294,10 +367,7 @@ export function Landing() {
 
         {/* ── Voice section ── */}
         <section className="px-5 py-24 sm:px-8">
-          <div
-            data-reveal
-            className="lore-card relative mx-auto max-w-4xl overflow-hidden px-6 py-16 text-center sm:px-12"
-          >
+          <div className="lore-card relative mx-auto max-w-4xl overflow-hidden px-6 py-16 text-center sm:px-12">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-64 max-w-2xl"
@@ -344,7 +414,6 @@ export function Landing() {
           className="relative scroll-mt-24 px-5 py-28 sm:px-8"
         >
           <div
-            data-parallax
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-0 z-0 mx-auto h-[440px] max-w-3xl"
             style={{
@@ -352,10 +421,7 @@ export function Landing() {
                 "radial-gradient(ellipse at 50% 100%, rgba(212,147,60,0.16) 0%, transparent 65%)",
             }}
           />
-          <div
-            data-reveal
-            className="relative z-10 mx-auto max-w-2xl text-center"
-          >
+          <div className="relative z-10 mx-auto max-w-2xl text-center">
             <h2 className="font-serif text-4xl leading-tight tracking-tight text-cream sm:text-5xl">
               Study like you finally
               <br />
@@ -477,8 +543,8 @@ function SectionHeading({
   title: React.ReactNode;
 }) {
   return (
-    <div data-reveal className="mx-auto max-w-2xl text-center">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-amber">
+    <div className="mx-auto max-w-2xl text-center">
+      <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
         {eyebrow}
       </p>
       <h2 className="font-serif text-3xl leading-tight tracking-tight text-cream sm:text-4xl">

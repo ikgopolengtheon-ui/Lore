@@ -36,7 +36,7 @@ export default function PricingPage() {
           </div>
 
           <div className="mx-auto w-full max-w-xl flex-1 py-12">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-amber">
+            <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
               Pricing
             </p>
             <h1 className="font-serif text-4xl leading-tight tracking-tight text-cream sm:text-5xl">

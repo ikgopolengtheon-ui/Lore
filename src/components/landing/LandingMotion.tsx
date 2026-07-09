@@ -1,10 +1,11 @@
 "use client";
 
 // Client-side motion layer for the landing page. The page content itself is
-// server-rendered (see Landing.tsx); this wrapper only orchestrates GSAP
-// (useGSAP + ScrollTrigger) over Lenis smooth scroll: staggered hero entrance,
-// scroll-batched reveals, hide-on-scroll nav, magnetic CTAs, and parallax
-// glows. Every animation is transform/opacity only and fully disabled under
+// server-rendered (see Landing.tsx); this wrapper orchestrates GSAP
+// (useGSAP + ScrollTrigger) over Lenis smooth scroll. Motion budget is
+// deliberate: ONE orchestrated moment (the hero entrance), a hide-on-scroll
+// nav, and magnetic CTAs — sections below the fold stay still. Every
+// animation is transform/opacity only and fully disabled under
 // reduced-motion (content simply stays visible).
 
 import { useRef } from "react";
@@ -96,34 +97,9 @@ export function LandingMotion({ children }: { children: React.ReactNode }) {
           "-=0.45",
         );
 
-      // ── Scroll-batched section reveals ────────────────────────────
-      gsap.set("[data-reveal]", { opacity: 0, y: 30 });
-      ScrollTrigger.batch("[data-reveal]", {
-        start: "top 86%",
-        onEnter: (els) =>
-          gsap.to(els, {
-            opacity: 1,
-            y: 0,
-            stagger: 0.12,
-            duration: 0.85,
-            ease: "power3.out",
-            overwrite: true,
-          }),
-      });
-
-      // ── Parallax on the ambient glows ─────────────────────────────
-      gsap.utils.toArray<HTMLElement>("[data-parallax]").forEach((el) => {
-        gsap.to(el, {
-          yPercent: 22,
-          ease: "none",
-          scrollTrigger: {
-            trigger: el,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-      });
+      // Motion is spent in exactly one place — the hero entrance above.
+      // Sections below the fold are deliberately still (no scroll reveals,
+      // no parallax): stillness is what makes the one moment read.
 
       // ── Nav: hide on scroll down, reveal on scroll up ─────────────
       let navShown = true;

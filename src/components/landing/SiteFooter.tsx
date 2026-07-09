@@ -54,7 +54,7 @@ export function SiteFooter() {
             </SocialLink>
           </div>
 
-          <h3 className="mt-10 text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+          <h3 className="mt-10 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-faint">
             Stay in the loop
           </h3>
           <p className="mt-3 text-sm leading-relaxed text-dusk">
@@ -69,7 +69,7 @@ export function SiteFooter() {
         <div className="grid grid-cols-2 gap-8">
           {COLUMNS.map((col) => (
             <nav key={col.title} aria-label={col.title}>
-              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-faint">
                 {col.title}
               </h3>
               <ul className="mt-4 flex flex-col gap-3">

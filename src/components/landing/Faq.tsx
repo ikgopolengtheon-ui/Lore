@@ -42,7 +42,7 @@ export function Faq() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-3">
       {FAQS.map((item) => (
-        <details key={item.q} data-reveal className="lore-card group">
+        <details key={item.q} className="lore-card group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-6 text-left [&::-webkit-details-marker]:hidden">
             <span className="font-serif text-lg text-cream">{item.q}</span>
             <span className="shrink-0 text-dusk transition-transform duration-300 group-open:rotate-180">

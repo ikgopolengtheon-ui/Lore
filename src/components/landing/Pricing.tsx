@@ -87,7 +87,6 @@ export function Pricing({
           tier.featured ? (
             <div
               key={tier.name}
-              data-reveal
               className={`relative rounded-[1.75rem] bg-amber p-7 shadow-2xl shadow-amber/15 ${
                 stacked ? "" : "lg:-my-6 lg:p-8"
               }`}
@@ -96,7 +95,7 @@ export function Pricing({
                 <Icon name="check" size={12} />
                 Most chosen
               </span>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-void/60">
+              <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-void/60">
                 {tier.eyebrow}
               </p>
               <h3 className="mt-2 font-serif text-2xl text-void">
@@ -120,7 +119,7 @@ export function Pricing({
               >
                 {tier.cta}
               </Link>
-              <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-void/60">
+              <p className="mt-6 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-void/60">
                 What&rsquo;s included
               </p>
               <ul className="mt-3 flex flex-col gap-2.5">
@@ -138,8 +137,8 @@ export function Pricing({
               </ul>
             </div>
           ) : (
-            <div key={tier.name} data-reveal className="lore-card h-full p-7">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+            <div key={tier.name} className="lore-card h-full p-7">
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-faint">
                 {tier.eyebrow}
               </p>
               <h3 className="mt-2 font-serif text-2xl text-cream">
@@ -163,7 +162,7 @@ export function Pricing({
               >
                 {tier.cta}
               </Link>
-              <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-faint">
+              <p className="mt-6 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-faint">
                 What&rsquo;s included
               </p>
               <ul className="mt-3 flex flex-col gap-2.5">
@@ -184,10 +183,7 @@ export function Pricing({
         )}
       </div>
 
-      <p
-        data-reveal
-        className="mx-auto mt-12 max-w-2xl text-center text-xs leading-relaxed text-faint"
-      >
+      <p className="mx-auto mt-12 max-w-2xl text-center text-xs leading-relaxed text-faint">
         Prices in USD, cancel anytime. Every plan has the full toolkit — the
         tiers change volume and voice, never features. When premium voice
         hours run out, Lore keeps going on the standard voice, no hard
