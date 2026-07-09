@@ -64,6 +64,7 @@ html {
   color: var(--cream);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  scrollbar-color: var(--faint) var(--void); /* Firefox */
 }
 
 body {
@@ -101,7 +102,22 @@ body {
 :focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: 2px;
-  border-radius: 4px;
+}
+
+::selection {
+  background: var(--amber);
+  color: var(--void);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* Waveform bars offscreen (toggled by LandingMotion) — stop burning frames */
+.wave-paused span {
+  animation-play-state: paused !important;
 }
 
 @keyframes lore-pulse {
@@ -160,4 +176,23 @@ body {
 
 .animate-fade-up {
   animation: lore-fade-up 0.5s ease-out both;
+}
+
+/* Premium card surface — soft squircle with a warm sheen, shared by the
+   landing sections and the dashboard. */
+.lore-card {
+  border-radius: 1.75rem;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(
+      155deg,
+      rgba(212, 147, 60, 0.09) 0%,
+      rgba(212, 147, 60, 0.02) 42%,
+      transparent 72%
+    ),
+    var(--carbon);
+  transition: border-color 0.3s ease;
+}
+.lore-card:hover {
+  border-color: var(--border-m);
 }

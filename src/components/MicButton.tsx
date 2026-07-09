@@ -10,14 +10,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { openLiveStt, type LiveStt, type SttResult } from "@/lib/sttStream";
 
 const MIN_RECORD_MS = 500; // < 0.5s → "hold a little longer" (PRD §5)
 
 interface Props {
   disabled?: boolean;
-  onQuestion: () => void;
+  /** streamed transcript when available, else the recorded clip for /api/stt */
+  onQuestion: (result: SttResult) => void;
   onTooShort: () => void;
   onPermissionDenied: () => void;
+}
+
+// Prefer Opus/WebM; Safari only offers audio/mp4 (PRD §9.2).
+function pickMime(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
 }
 
 export function MicButton({
@@ -35,6 +47,11 @@ export function MicButton({
   const rafRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const simRef = useRef(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const liveRef = useRef<LiveStt | null>(null);
+  const liveSentRef = useRef(0);
+  const listeningRef = useRef(false);
 
   const cleanup = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -46,6 +63,8 @@ export function MicButton({
       ctxRef.current.close().catch(() => {});
     }
     ctxRef.current = null;
+    liveRef.current?.abort();
+    liveRef.current = null;
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -90,6 +109,9 @@ export function MicButton({
   const start = useCallback(async () => {
     if (disabled || listening) return;
     startedAt.current = Date.now();
+    listeningRef.current = true;
+    liveRef.current = null;
+    liveSentRef.current = 0;
     setListening(true);
 
     // Resume AudioContext on the user gesture (Safari, PRD §9.2)
@@ -110,6 +132,42 @@ export function MicButton({
       source.connect(analyser);
       analyserRef.current = analyser;
       simRef.current = false;
+
+      // Record the clip (kept for the prerecorded fallback) and stream each
+      // chunk to Deepgram live for real-time transcription (PRD §4.4).
+      try {
+        const mime = pickMime();
+        const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+        chunksRef.current = [];
+        rec.ondataavailable = (e) => {
+          if (!e.data.size) return;
+          chunksRef.current.push(e.data);
+          if (liveRef.current) {
+            liveRef.current.send(e.data);
+            liveSentRef.current = chunksRef.current.length;
+          }
+        };
+        rec.start(250); // timeslice so Safari flushes data (PRD §9.2)
+        recorderRef.current = rec;
+
+        // Open the streaming socket in parallel; forward any chunks captured
+        // before it connected. Falls back silently to prerecorded on failure.
+        openLiveStt().then((live) => {
+          if (!live) return;
+          if (!listeningRef.current) {
+            live.abort();
+            return;
+          }
+          liveRef.current = live;
+          for (let i = liveSentRef.current; i < chunksRef.current.length; i++) {
+            live.send(chunksRef.current[i]);
+          }
+          liveSentRef.current = chunksRef.current.length;
+        });
+      } catch {
+        recorderRef.current = null; // no recorder → STT falls back to mock
+      }
+
       drawReal();
     } catch (err) {
       // Permission explicitly denied → surface Screen 8.1 and abort.
@@ -130,13 +188,59 @@ export function MicButton({
     if (!listening) return;
     const duration = Date.now() - startedAt.current;
     setListening(false);
+    listeningRef.current = false;
     setBars(new Array(28).fill(0.08));
-    cleanup();
+    // stop the waveform loop immediately; keep the stream alive until the
+    // recorder finishes flushing so no audio is lost.
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    analyserRef.current = null;
+
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    const live = liveRef.current;
+    liveRef.current = null;
+
     if (duration < MIN_RECORD_MS) {
+      live?.abort();
+      if (rec && rec.state !== "inactive") {
+        rec.ondataavailable = null;
+        rec.onstop = null;
+        try {
+          rec.stop();
+        } catch {}
+      }
+      cleanup();
       onTooShort();
       return;
     }
-    onQuestion();
+
+    if (rec && rec.state !== "inactive") {
+      rec.onstop = async () => {
+        const blob = new Blob(chunksRef.current, {
+          type: rec.mimeType || "audio/webm",
+        });
+        if (live) {
+          const transcript = await live.finish();
+          cleanup();
+          // Use the streamed transcript; fall back to the clip if it came back
+          // empty (Study then tries prerecorded /api/stt).
+          if (transcript) onQuestion({ transcript });
+          else onQuestion({ audio: blob.size ? blob : null });
+        } else {
+          cleanup();
+          onQuestion({ audio: blob.size ? blob : null });
+        }
+      };
+      try {
+        rec.requestData();
+      } catch {}
+      rec.stop();
+    } else {
+      live?.abort();
+      cleanup();
+      onQuestion({ audio: null }); // simulated fallback — Study uses mock STT
+    }
   }, [listening, cleanup, onTooShort, onQuestion]);
 
   // Keyboard: Space/Enter press-and-hold (avoid key repeat re-triggering)

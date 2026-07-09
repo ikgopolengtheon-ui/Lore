@@ -1,10 +1,5 @@
-import { StoreProvider } from "@/lib/store";
-import { LoreApp } from "@/components/LoreApp";
+import { Landing } from "@/components/landing/Landing";
 
 export default function Home() {
-  return (
-    <StoreProvider>
-      <LoreApp />
-    </StoreProvider>
-  );
+  return <Landing />;
 }

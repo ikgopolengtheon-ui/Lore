@@ -28,6 +28,23 @@ export function classifyStem(text: string): boolean {
   return hits >= 2; // require a couple of signals to reduce false positives
 }
 
+// Pull equation/derivation lines out of a real LLM answer so Whiteboard Mode
+// can render them. The grounding prompt asks the model to put one step per
+// line; we keep the lines that read as maths (contain "=", an integral/fraction,
+// exponents, or an arrow) and drop ordinary prose.
+const STEP_LINE = /[=∫√±×÷]|->|→|\\(frac|int|sqrt)|\^\d|\b\d+\s*\/\s*\d+\b/;
+
+export function extractWhiteboardSteps(text: string): WhiteboardStep[] {
+  const steps: WhiteboardStep[] = [];
+  for (const raw of text.split(/\n+/)) {
+    const line = raw.trim().replace(/^[-*•\d.)\s]+/, "");
+    if (line.length < 2 || line.length > 120) continue;
+    if (!STEP_LINE.test(line)) continue;
+    steps.push({ text: line, emphasis: /=/.test(line) && steps.length === 0 });
+  }
+  return steps.slice(0, 8);
+}
+
 // ─── Canned questions students "speak" (mock STT) ────────────────
 // The prototype captures real audio but returns a canned transcript on
 // release, cycling through these (PRD §4.2 STT is mocked here).

@@ -22,7 +22,14 @@ export type IconName =
   | "image"
   | "sparkle"
   | "chevron"
-  | "wifi-off";
+  | "check"
+  | "wifi-off"
+  | "settings"
+  | "logout"
+  | "cursor"
+  | "pen"
+  | "eraser"
+  | "undo";
 
 const paths: Record<IconName, React.ReactNode> = {
   mic: (
@@ -136,6 +143,7 @@ const paths: Record<IconName, React.ReactNode> = {
     />
   ),
   chevron: <path d="M5.5 9L12 15.5L18.5 9" />,
+  check: <path d="M4 12.5L9.5 18.5L20 6.5" />,
   "wifi-off": (
     <>
       <path d="M2 8.5Q7 4.5 12 4.5" opacity=".45" />
@@ -143,6 +151,45 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M8.5 15.5Q10.5 14 12.5 14.7" />
       <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none" />
       <line x1="3" y1="3" x2="21" y2="21" />
+    </>
+  ),
+  settings: (
+    <>
+      <line x1="4" y1="7" x2="20" y2="7" opacity=".45" />
+      <circle cx="9.5" cy="7" r="2.4" />
+      <line x1="4" y1="15.5" x2="20" y2="15.5" opacity=".45" />
+      <circle cx="14.5" cy="15.5" r="2.4" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M10 4H6Q4.5 4 4.5 5.5L4.5 18.5Q4.5 20 6 20H10" />
+      <line x1="9.5" y1="12" x2="20" y2="12" />
+      <polyline points="16.5,8.5 20,12 16.5,15.5" />
+    </>
+  ),
+  cursor: (
+    <>
+      <path d="M6.5 3.5L18.5 11.5L12.2 13L9.3 19.5L6.5 3.5Z" />
+    </>
+  ),
+  pen: (
+    <>
+      <path d="M5 19L6.1 14.9L16.5 4.5Q18 3 19.5 4.5T19.5 7.5L9.1 17.9L5 19Z" />
+      <line x1="14.4" y1="6.6" x2="17.4" y2="9.6" opacity=".45" />
+    </>
+  ),
+  eraser: (
+    <>
+      <path d="M7.5 18.5L3.9 14.9Q2.9 13.9 3.9 12.9L12.2 4.6Q13.2 3.6 14.2 4.6L19.4 9.8Q20.4 10.8 19.4 11.8L12.7 18.5Z" />
+      <line x1="8.2" y1="8.6" x2="15.4" y2="15.8" opacity=".45" />
+      <line x1="8" y1="20.5" x2="20" y2="20.5" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M5.5 9.5H14Q19 9.5 19 13.75T14 18H9" />
+      <polyline points="9,6 5.5,9.5 9,13" />
     </>
   ),
 };

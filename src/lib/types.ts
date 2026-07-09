@@ -13,9 +13,17 @@ export interface UploadedFile {
   ext: string;
   /** data URL preview for image thumbnails */
   thumbnail?: string;
+  /** text extracted client-side (TXT today; PDF/DOCX/OCR to follow) */
+  extractedText?: string;
 }
 
 export type TurnRole = "student" | "lore";
+
+/** minimal turn shape sent to the LLM route */
+export interface ChatTurn {
+  role: TurnRole;
+  text: string;
+}
 
 export interface WhiteboardStep {
   /** rendered as handwritten math/notation on the canvas */
@@ -57,6 +65,8 @@ export interface Session {
   lastActive: number;
   /** approximate word count of indexed content, gates quiz (PRD §7 / Screen 7) */
   wordCount: number;
+  /** combined extracted study text the LLM is grounded against */
+  documentText?: string;
 }
 
 // ─── UI state machine ────────────────────────────────────────────
@@ -79,4 +89,15 @@ export interface ToastMsg {
   id: string;
   text: string;
   tone?: "neutral" | "error" | "success";
+}
+
+/** result of POST /api/extract for a single file */
+export interface ExtractResult {
+  ok: boolean;
+  kind?: FileKind;
+  text: string;
+  scanned?: boolean; // document had no selectable text (Screen 8.4)
+  imageEmpty?: boolean; // vision returned nothing usable (Screen 8.11)
+  unsupported?: boolean; // format not parsed yet (e.g. pptx)
+  error?: string; // hard processing failure (Screen 8.3)
 }

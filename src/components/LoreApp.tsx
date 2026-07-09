@@ -5,15 +5,27 @@
 // the screen components. Session data itself lives in the localStorage store.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AppView, SessionStage, ToastMsg, UploadedFile } from "@/lib/types";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabaseConfigured } from "@/lib/supabase";
+import { getSettings, PLANS, formatSubjectLimit } from "@/lib/settings";
+import type {
+  AppView,
+  ExtractResult,
+  SessionStage,
+  ToastMsg,
+  UploadedFile,
+} from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { uid } from "@/lib/mockAI";
 import { fileExt } from "@/lib/constants";
+import { extractFile } from "@/lib/extractClient";
 import type { ErrorKey } from "@/lib/errors";
 
 import { Header } from "./Header";
 import { Toaster } from "./Toast";
 import { Icon } from "./Icon";
+import { AccountButton } from "./AccountButton";
 import { Dashboard } from "./screens/Dashboard";
 import { Upload } from "./screens/Upload";
 import { Processing } from "./screens/Processing";
@@ -24,9 +36,13 @@ import { StatePreview } from "./StatePreview";
 
 export function LoreApp() {
   const store = useStore();
+  const router = useRouter();
   const [view, setView] = useState<AppView>("dashboard");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [stage, setStage] = useState<SessionStage>("upload");
+  // set by ?mode=whiteboard deep links (Whiteboards hub): the session opens
+  // with the board out and keeps it out, instead of the answer-driven default
+  const [boardIntent, setBoardIntent] = useState(false);
   const [errorKey, setErrorKey] = useState<ErrorKey | null>(null);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [offline, setOffline] = useState(false);
@@ -34,6 +50,15 @@ export function LoreApp() {
 
   const active = activeId ? store.getSession(activeId) : undefined;
   const isImageSession = active?.files[0]?.kind === "image";
+
+  // Chat mode requires an account — no anonymous studying. Anyone without a
+  // signed-in email is sent to /auth once the store has resolved the user.
+  const requireAuth = supabaseConfigured();
+  const signedIn = Boolean(store.user?.email);
+  useEffect(() => {
+    if (!requireAuth || !store.hydrated || signedIn) return;
+    router.replace("/auth?mode=signin");
+  }, [requireAuth, store.hydrated, signedIn, router]);
 
   // ─── toasts ────────────────────────────────────────────────────
   const pushToast = useCallback(
@@ -64,46 +89,168 @@ export function LoreApp() {
     setView("dashboard");
     setActiveId(null);
     setErrorKey(null);
+    setBoardIntent(false);
   }, []);
 
   const newChat = useCallback(() => {
+    // Tier gate: subjects are the metered unit (Focus 3 / Scholar 10 /
+    // Mastery unlimited).
+    const plan = PLANS[getSettings().plan];
+    if (store.sessions.length >= plan.subjects) {
+      pushToast(
+        `${plan.label} keeps ${formatSubjectLimit(plan.subjects)} saved subjects. Delete one or upgrade to add more.`,
+        "error",
+      );
+      setView("dashboard");
+      return;
+    }
     const s = store.createSession();
     setActiveId(s.id);
     setStage("upload");
     setErrorKey(null);
+    setBoardIntent(false);
     setView("session");
-  }, [store]);
+  }, [store, pushToast]);
 
   const openSession = useCallback(
     (id: string) => {
       const s = store.getSession(id);
       setActiveId(id);
       setErrorKey(null);
+      setBoardIntent(false);
       setStage(s && s.files.length > 0 ? "study" : "upload");
       setView("session");
     },
     [store],
   );
 
+  // Deep links from the dashboard shell: /app?new=1 starts a fresh
+  // upload-and-study flow; /app?session=<id>[&mode=quiz] opens a chat
+  // (optionally straight into its quiz). Waits for the store to hydrate, and
+  // for the Supabase load when the chat isn't in the local copy yet.
+  const params = useSearchParams();
+  const deepLinkDone = useRef(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- one-time URL→state
+     sync: the deep link is applied exactly once after hydration, then the
+     query is stripped; the state isn't derivable during render. */
+  useEffect(() => {
+    if (deepLinkDone.current || !store.hydrated) return;
+    if (requireAuth && !signedIn) return; // gate redirects; don't create chats
+    const clean = () => window.history.replaceState(null, "", "/app");
+    const mode = params.get("mode");
+    if (params.get("new")) {
+      deepLinkDone.current = true;
+      newChat();
+      if (mode === "whiteboard") setBoardIntent(true);
+      clean();
+      return;
+    }
+    const sid = params.get("session");
+    if (!sid) {
+      deepLinkDone.current = true;
+      return;
+    }
+    const s = store.getSession(sid);
+    if (s) {
+      deepLinkDone.current = true;
+      openSession(sid);
+      if (mode === "quiz" && s.files.length > 0) {
+        setStage("quiz");
+      }
+      if (mode === "whiteboard") setBoardIntent(true);
+      clean();
+    } else if (store.synced) {
+      // fully loaded and still missing — fall back to the chats list
+      deepLinkDone.current = true;
+      clean();
+    }
+  }, [params, store, newChat, openSession, requireAuth, signedIn]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const handleUploadStart = useCallback(
-    (files: UploadedFile[]) => {
+    async (
+      files: UploadedFile[],
+      raw: Record<string, File>,
+      subjectName: string,
+    ) => {
       if (!activeId) return;
+      const id = activeId;
       const first = files[0];
-      const title =
-        first.kind === "image"
-          ? `Photo notes (${files.length})`
-          : first.name.replace(/\.[^.]+$/, "");
-      // mock indexed word count — enough to allow quizzing
-      const wordCount = 250 + Math.floor(Math.random() * 900);
-      store.updateSession(activeId, {
+      const isImage = first.kind === "image";
+      const title = subjectName.trim() || first.name.replace(/\.[^.]+$/, "");
+
+      // show Processing immediately with the file metadata
+      store.updateSession(id, {
         title,
         files,
-        wordCount,
         subject: guessSubject(first.name),
       });
       setStage("processing");
+
+      // Extract text for every file (TXT already read client-side; others go
+      // through /api/extract). Keep a floor so Processing doesn't just flash.
+      const sleep = new Promise((r) => setTimeout(r, 1200));
+      const [results] = await Promise.all([
+        Promise.all(
+          files.map(async (f): Promise<ExtractResult> => {
+            if (f.extractedText !== undefined) {
+              return { ok: true, kind: f.kind, text: f.extractedText };
+            }
+            const file = raw[f.id];
+            if (!file) return { ok: true, kind: f.kind, text: "" };
+            return extractFile(file);
+          }),
+        ),
+        sleep,
+      ]);
+
+      // Combine extracted text in upload order → one grounding corpus (§4.5).
+      const documentText = results
+        .map((r) => r.text)
+        .filter(Boolean)
+        .join("\n\n")
+        .trim();
+
+      // Failure routing (PRD Screen 8.3 / 8.4 / 8.11).
+      const hardError = results.some((r) => r.error);
+      if (hardError) {
+        setErrorKey("processing-failed");
+        return;
+      }
+      if (!documentText) {
+        if (isImage) setErrorKey("image-extract");
+        else setErrorKey(results.some((r) => r.scanned) ? "scanned-doc" : "processing-failed");
+        return;
+      }
+
+      // Partial-quality advisories (non-blocking, PRD §4.5/§4.6).
+      if (isImage && results.some((r) => r.imageEmpty)) {
+        pushToast("Some photos had no readable text and were skipped.");
+      }
+      if (results.some((r) => r.unsupported)) {
+        pushToast("Some content (like slides) couldn't be read and was skipped.");
+      }
+      if (!isImage && results.some((r) => r.scanned)) {
+        pushToast("Part of this document had no selectable text.");
+      }
+
+      store.updateSession(id, {
+        documentText,
+        wordCount: documentText.split(/\s+/).filter(Boolean).length,
+      });
+
+      // Index into the vector store for RAG (fire-and-forget). Until embedding
+      // finishes, chat falls back to full-document context, so study isn't
+      // blocked on it.
+      fetch("/api/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: id, text: documentText }),
+      }).catch(() => {});
+
+      setStage("study");
     },
-    [activeId, store],
+    [activeId, store, pushToast],
   );
 
   // ─── error triggers ────────────────────────────────────────────
@@ -141,13 +288,57 @@ export function LoreApp() {
     }
   }, [errorKey]);
 
+  // Delete a chat: drop its vectors too (PRD §11.3), then remove it locally.
+  const handleDelete = useCallback(
+    (sid: string) => {
+      fetch("/api/rag-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(() => {});
+      store.deleteSession(sid);
+    },
+    [store],
+  );
+
   // ─── render ────────────────────────────────────────────────────
-  const headerRight =
-    view === "session" && active ? (
-      <span className="hidden text-xs text-dusk sm:block">
-        {stage === "quiz" ? "Quiz" : "Study"} · {active.title}
-      </span>
-    ) : null;
+  // Auth gate (after all hooks): anonymous visitors see a brief hand-off
+  // screen — no app chrome, no Log in / Sign up bar — while the redirect to
+  // /auth runs.
+  if (requireAuth && (!store.hydrated || !signedIn)) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-void px-6 text-center">
+        <div>
+          <p className="font-serif text-2xl text-cream">
+            {store.hydrated ? "Sign in to study" : "Loading…"}
+          </p>
+          {store.hydrated && (
+            <p className="mt-2 text-sm text-dusk">
+              Chat mode needs an account — taking you to sign in…
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const headerRight = (
+    <>
+      {view === "session" && active && (
+        <span className="hidden text-xs text-dusk md:block">
+          {stage === "quiz" ? "Quiz" : "Study"} · {active.title}
+        </span>
+      )}
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-1.5 rounded-lg border border-line-m px-3 py-2 text-xs font-medium text-dusk transition-colors hover:text-cream"
+      >
+        <Icon name="sparkle" size={14} />
+        <span className="hidden sm:inline">Dashboard</span>
+      </Link>
+      <AccountButton />
+    </>
+  );
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -175,7 +366,7 @@ export function LoreApp() {
           sessions={store.sessions}
           onNewChat={newChat}
           onOpen={openSession}
-          onDelete={store.deleteSession}
+          onDelete={handleDelete}
         />
       ) : !active ? (
         <div className="flex flex-1 items-center justify-center text-dusk">
@@ -184,10 +375,7 @@ export function LoreApp() {
       ) : stage === "upload" ? (
         <Upload onStart={handleUploadStart} />
       ) : stage === "processing" ? (
-        <Processing
-          isImage={isImageSession}
-          onDone={() => setStage("study")}
-        />
+        <Processing isImage={isImageSession} />
       ) : stage === "quiz" ? (
         <Quiz
           session={active}
@@ -199,6 +387,7 @@ export function LoreApp() {
         <Study
           session={active}
           offline={offline}
+          boardIntent={boardIntent}
           onQuiz={() => setStage("quiz")}
           onMicDenied={() => triggerError("mic-denied")}
           onLlmError={onLlmError}
@@ -207,7 +396,9 @@ export function LoreApp() {
       )}
 
       <Toaster toasts={toasts} onDismiss={dismissToast} />
-      <StatePreview onError={triggerError} />
+      {process.env.NODE_ENV === "development" && (
+        <StatePreview onError={triggerError} />
+      )}
     </div>
   );
 }
